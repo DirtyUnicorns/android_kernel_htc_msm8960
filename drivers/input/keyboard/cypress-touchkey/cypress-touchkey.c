@@ -1070,13 +1070,13 @@ static void init_hw(void)
 
 	struct pm8058_gpio_cfg touchkey_int_cfg =
 	{
-		13,
+	  PM8058_GPIO_PM_TO_SYS(12), // id-1
 		{
-			.direction      = PM_GPIO_DIR_IN,
-			.pull           = PM_GPIO_PULL_NO,//PM_GPIO_PULL_NO,
-			.vin_sel        = 2,
-			.function       = PM_GPIO_FUNC_NORMAL,
-			.inv_int_pol    = 0,
+			.direction	  = PM_GPIO_DIR_IN,
+			.pull		   = PM_GPIO_PULL_NO,//PM_GPIO_PULL_NO,
+			.vin_sel		= 2,
+			.function	   = PM_GPIO_FUNC_NORMAL,
+			.inv_int_pol	= 0,
 		},
 	};
 
