@@ -80,7 +80,8 @@ struct msm_camera_device_platform_data {
 	struct msm_camera_io_ext ioext;
 	struct msm_camera_io_clk ioclk;
 	uint8_t csid_core;
-#ifdef CONFIG_MACH_HTC
+#if defined(CONFIG_MACH_HTC) \
+	|| defined(CONFIG_MSM_CAMERA_CHOCOLATE)
 	uint8_t is_csiphy;
 	uint8_t is_csic;
 	uint8_t is_csid;
@@ -146,7 +147,9 @@ enum msm_camera_ext_led_flash_id {
 struct msm_camera_sensor_flash_external {
 	uint32_t led_en;
 	uint32_t led_flash_en;
+#if defined(CONFIG_MSM_CAMERA_CHOCOLATE)
 	enum msm_camera_ext_led_flash_id flash_id;
+#endif
 	struct msm_cam_expander_info *expander_info;
 };
 
@@ -195,10 +198,25 @@ enum msm_camera_type {
 	BACK_CAMERA_INT_3D,
 };
 
+#if defined(CONFIG_MSM_CAMERA_CHOCOLATE)
+enum camera_vreg_type {
+	REG_LDO,
+	REG_VS,
+};
+
+struct camera_vreg_t {
+	char *reg_name;
+	enum camera_vreg_type type;
+	int min_voltage;
+	int max_voltage;
+	int op_mode;
+};
+#else
 enum msm_sensor_type {
 	BAYER_SENSOR,
 	YUV_SENSOR,
 };
+#endif
 
 struct msm_gpio_set_tbl {
 	unsigned gpio;
@@ -221,6 +239,7 @@ struct msm_camera_gpio_conf {
 	uint8_t cam_gpio_req_tbl_size;
 	struct msm_gpio_set_tbl *cam_gpio_set_tbl;
 	uint8_t cam_gpio_set_tbl_size;
+#if !defined(CONFIG_MSM_CAMERA_CHOCOLATE)
 	uint32_t gpio_no_mux;
 	uint32_t *camera_off_table;
 	uint8_t camera_off_table_size;
@@ -230,8 +249,10 @@ struct msm_camera_gpio_conf {
 	uint16_t *cam_gpio_tbl;
 	uint8_t cam_gpio_tbl_size;
 #endif
+#endif
 };
 
+#if !defined(CONFIG_MSM_CAMERA_CHOCOLATE)
 enum msm_camera_i2c_mux_mode {
 	MODE_R,
 	MODE_L,
@@ -250,6 +271,7 @@ enum msm_camera_vreg_name_t {
 	CAM_VANA,
 	CAM_VAF,
 };
+#endif
 
 struct msm_camera_sensor_platform_info {
 	int mount_angle;
@@ -258,6 +280,7 @@ struct msm_camera_sensor_platform_info {
 	int num_vreg;
 	int32_t (*ext_power_ctrl) (int enable);
 	struct msm_camera_gpio_conf *gpio_conf;
+#if !defined(CONFIG_MSM_CAMERA_CHOCOLATE)
 	struct msm_camera_i2c_conf *i2c_conf;
 	struct msm_camera_csi_lane_params *csi_lane_params;
 #if defined(CONFIG_MACH_HTC) && defined(CONFIG_MSM_CAMERA)
@@ -273,8 +296,10 @@ struct msm_camera_sensor_platform_info {
 	bool ews_enable;
 	bool board_control_reset_pin;
 #endif
+#endif
 };
 
+#if !defined(CONFIG_MSM_CAMERA_CHOCOLATE)
 enum msm_camera_actuator_name {
 	MSM_ACTUATOR_MAIN_CAM_0,
 	MSM_ACTUATOR_MAIN_CAM_1,
@@ -286,10 +311,13 @@ enum msm_camera_actuator_name {
 	MSM_ACTUATOR_WEB_CAM_1,
 	MSM_ACTUATOR_WEB_CAM_2,
 };
+#endif
 
 struct msm_actuator_info {
 	struct i2c_board_info const *board_info;
+#if !defined(CONFIG_MSM_CAMERA_CHOCOLATE)
 	enum msm_camera_actuator_name cam_name;
+#endif
 	int bus_id;
 	int vcm_pwd;
 	int vcm_enable;
@@ -331,15 +359,21 @@ struct msm_camera_sensor_info {
 	uint8_t num_resources;
 	struct msm_camera_sensor_flash_data *flash_data;
 	int csi_if;
+#if defined(CONFIG_MACH_HTC) || defined(CONFIG_MSM_CAMERA_CHOCOLATE)
+	struct msm_camera_csi_params csi_params;
+#endif
 	struct msm_camera_sensor_strobe_flash_data *strobe_flash_data;
 	char *eeprom_data;
 	enum msm_camera_type camera_type;
+#if !defined(CONFIG_MSM_CAMERA_CHOCOLATE)
 	enum msm_sensor_type sensor_type;
+#endif
 	struct msm_actuator_info *actuator_info;
+#if !defined(CONFIG_MSM_CAMERA_CHOCOLATE)
 	int pmic_gpio_enable;
 	struct msm_eeprom_info *eeprom_info;
+#endif
 #if defined(CONFIG_MACH_HTC) && defined(CONFIG_MSM_CAMERA)
-	struct msm_camera_csi_params csi_params;
 	uint16_t num_actuator_info_table;
 	struct msm_actuator_info **actuator_info_table;
 	struct msm_camera_gpio_conf *gpio_conf;
