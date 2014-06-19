@@ -80,8 +80,7 @@ enum {
 	CHG_MODE_NONE,
 	CHG_MODE_AC,
 	CHG_MODE_USB,
-	CHG_MODE_MISC,
-	CHG_MODE_UNKNOWN
+	CHG_MODE_MISC
 };
 
 enum {
@@ -234,8 +233,7 @@ static void smb328a_set_command_reg(struct i2c_client *client)
 		dev_info(&client->dev, "%s : reg (0x%x) = 0x%x\n",
 			__func__, reg, data);
 		if (chip->chg_mode == CHG_MODE_AC ||
-			chip->chg_mode == CHG_MODE_MISC ||
-			chip->chg_mode == CHG_MODE_UNKNOWN)
+			chip->chg_mode == CHG_MODE_MISC)
 			data = 0xad;
 		else
 			data = 0xa9; /* usb */
@@ -1290,8 +1288,7 @@ static int smb328a_enable_charging(struct i2c_client *client)
 		dev_info(&client->dev, "%s : reg (0x%x) = 0x%x\n",
 					__func__, reg, data);
 		if (chip->chg_mode == CHG_MODE_AC ||
-			chip->chg_mode == CHG_MODE_MISC ||
-			chip->chg_mode == CHG_MODE_UNKNOWN)
+			chip->chg_mode == CHG_MODE_MISC)
 			data = 0xad;
 		else if (chip->chg_mode == CHG_MODE_USB)
 			data = 0xa9;
