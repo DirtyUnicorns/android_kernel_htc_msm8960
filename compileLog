@@ -1,0 +1,8 @@
+  CHK     include/linux/version.h
+  CHK     include/generated/utsrelease.h
+make[1]: »include/generated/mach-types.h« ist bereits aktualisiert.
+  CALL    scripts/checksyscalls.sh
+  CHK     include/generated/compile.h
+  CHK     kernel/config_data.h
+  Kernel: arch/arm/boot/Image is ready
+  Kernel: arch/arm/boot/zImage is ready

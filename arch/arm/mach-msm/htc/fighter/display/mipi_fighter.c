@@ -1465,8 +1465,7 @@ static struct dsi_cmd_desc novatek_display_off_lg_cmds[] = {
 		sizeof(enter_sleep), enter_sleep}
 };
 
-static int fighter_send_display_cmds(struct dsi_cmd_desc *cmd, int cnt,
-		bool clk_ctrl)
+static int fighter_send_display_cmds(struct dsi_cmd_desc *cmd, int cnt)
 {
 	int ret = 0;
 	struct dcs_cmd_req cmdreq;
@@ -1474,8 +1473,6 @@ static int fighter_send_display_cmds(struct dsi_cmd_desc *cmd, int cnt,
 	cmdreq.cmds = cmd;
 	cmdreq.cmds_cnt = cnt;
 	cmdreq.flags = CMD_REQ_COMMIT;
-	if (clk_ctrl)
-		cmdreq.flags |= CMD_CLK_CTRL;
 	cmdreq.rlen = 0;
 	cmdreq.cb = NULL;
 
@@ -1503,11 +1500,10 @@ static int mipi_fighter_lcd_on(struct platform_device *pdev)
 	mipi = &mfd->panel_info.mipi;
 
 	if (mipi->mode == DSI_CMD_MODE)
-		fighter_send_display_cmds(cmd_on_cmds,
-				cmd_on_cmds_count, false);
+		fighter_send_display_cmds(cmd_on_cmds, cmd_on_cmds_count);
 	else if (mipi->mode == DSI_VIDEO_MODE)
 		fighter_send_display_cmds(novatek_video_on_cmds,
-				ARRAY_SIZE(novatek_video_on_cmds), false);
+				ARRAY_SIZE(novatek_video_on_cmds));
 
 	mipi_lcd_on = 1;
 	return 0;
@@ -1528,8 +1524,7 @@ static int mipi_fighter_lcd_off(struct platform_device *pdev)
 		return 0;
 
 	if (panel_type != PANEL_ID_NONE)
-		fighter_send_display_cmds(display_off_cmds,
-				display_off_cmds_count, false);
+		fighter_send_display_cmds(display_off_cmds, display_off_cmds_count);
 
 	mipi_lcd_on = 0;
 	return 0;
@@ -1564,7 +1559,7 @@ static void mipi_fighter_set_backlight(struct msm_fb_data_type *mfd)
 	led_pwm1[1] = fighter_shrink_pwm(mfd->bl_level);
 
 	fighter_send_display_cmds(fighter_cmd_backlight_cmds,
-			ARRAY_SIZE(fighter_cmd_backlight_cmds), true);
+			ARRAY_SIZE(fighter_cmd_backlight_cmds));
 }
 
 static int isOrise(void)

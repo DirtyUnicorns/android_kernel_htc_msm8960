@@ -979,6 +979,11 @@ config TOUCH_REG_MAP_TM2000
 	help
 	  Synaptics Register map TM2000.
 
+config TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
+        tristate "Sweep2Wake for SYNAPTICS_3k based touchscreens"
+        depends on TOUCHSCREEN_SYNAPTICS_3K
+        default n
+
 config TOUCHSCREEN_SYNAPTICS_I2C_RMI4
 	tristate "Synaptics DSX I2C touchscreen"
 	depends on I2C

@@ -42,7 +42,7 @@
 /*
  * Sleep at most 200ms at a time in balance_dirty_pages().
  */
-#define MAX_PAUSE		max(HZ/5, 1)
+#define MAX_PAUSE		200
 
 /*
  * Try to keep balance_dirty_pages() call intervals higher than this many pages
@@ -53,7 +53,7 @@
 /*
  * Estimate write bandwidth at 200ms intervals.
  */
-#define BANDWIDTH_INTERVAL	max(HZ/5, 1)
+#define BANDWIDTH_INTERVAL	200
 
 #define RATELIMIT_CALC_SHIFT	10
 
@@ -458,7 +458,7 @@ static void bdi_writeout_fraction(struct backing_dev_info *bdi,
  * registered backing devices, which, for obvious reasons, can not
  * exceed 100%.
  */
-static unsigned int bdi_min_ratio;
+static unsigned int bdi_min_ratio = 5;
 
 int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 {

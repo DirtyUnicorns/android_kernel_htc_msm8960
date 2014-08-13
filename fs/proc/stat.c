@@ -47,8 +47,7 @@ static u64 get_idle_time(int cpu)
 {
 	u64 idle, idle_time = -1ULL;
 
-	if (cpu_online(cpu))
-		idle_time = get_cpu_idle_time_us(cpu, NULL);
+	idle_time = get_cpu_idle_time_us(cpu, NULL);
 
 	if (idle_time == -1ULL)
 		/* !NO_HZ or cpu offline so we can rely on cpustat.idle */

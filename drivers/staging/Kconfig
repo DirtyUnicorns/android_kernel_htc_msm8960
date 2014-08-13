@@ -136,6 +136,8 @@ source "drivers/staging/ozwpan/Kconfig"
 
 source "drivers/staging/prima/Kconfig"
 
+source "drivers/staging/cpupower/Kconfig" 
+
 source "drivers/staging/prima_jb3.2/Kconfig"
 
 endif # STAGING

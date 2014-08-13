@@ -80,7 +80,7 @@ bool gpu_busy_state;
 static unsigned int min_sampling_rate;
 
 #define LATENCY_MULTIPLIER			(1000)
-#define MIN_LATENCY_MULTIPLIER			(20)
+#define MIN_LATENCY_MULTIPLIER			(100)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
 
 #define POWERSAVE_BIAS_MAXLEVEL			(1000)
@@ -1458,4 +1458,3 @@ fs_initcall(cpufreq_gov_bds_init);
 module_init(cpufreq_gov_bds_init);
 #endif
 module_exit(cpufreq_gov_bds_exit);
-

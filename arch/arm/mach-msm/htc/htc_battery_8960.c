@@ -40,7 +40,6 @@
 #include <mach/htc_charger.h>
 #include <mach/htc_battery_cell.h>
 #define MSPERIOD(end, start)	ktime_to_ms(ktime_sub(end, start))
-#include <linux/fastchg.h>
 
 #define HTC_BATT_CHG_DIS_BIT_EOC	(1)
 #define HTC_BATT_CHG_DIS_BIT_ID		(1<<1)
@@ -65,6 +64,9 @@ static int chg_dis_control_mask = HTC_BATT_CHG_DIS_BIT_ID
 static int chg_dis_pj_mask = HTC_BATT_CHG_DIS_BIT_ID
 								| HTC_BATT_CHG_DIS_BIT_TMR;
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#include <linux/fastchg.h>
+#endif
 
 #define HTC_BATT_PWRSRC_DIS_BIT_MFG		(1)
 #define HTC_BATT_PWRSRC_DIS_BIT_API		(1<<1)
@@ -433,7 +435,13 @@ int htc_charger_event_notify(enum htc_charger_event event)
 		htc_batt_schedule_batt_info_update();
 		break;
 	case HTC_CHARGER_EVENT_SRC_USB: 
-		latest_chg_src = CHARGER_USB;
+		if (force_fast_charge == 1) {
+			printk("[FASTCHARGE] Forcing CHARGER_AC");
+			latest_chg_src = CHARGER_AC;
+		} else {
+			printk("[FASTCHARGE] NOT set, using normal CHARGER_USB");
+			latest_chg_src = CHARGER_USB;
+		}
 		htc_batt_schedule_batt_info_update();
 		break;
 	case HTC_CHARGER_EVENT_SRC_AC: 
@@ -454,7 +462,8 @@ int htc_charger_event_notify(enum htc_charger_event event)
 								UNKNOWN_USB_DETECT_DELAY_MS)));
 		break;
 	case HTC_CHARGER_EVENT_SRC_UNKNOWN_USB: 
-		if (get_kernel_flag() & KERNEL_FLAG_ENABLE_FAST_CHARGE)
+		if ((force_fast_charge == 1) ||
+		(get_kernel_flag() & KERNEL_FLAG_ENABLE_FAST_CHARGE))
 			latest_chg_src = CHARGER_AC;
 		else
 			latest_chg_src = CHARGER_UNKNOWN_USB;
@@ -665,19 +674,8 @@ static void cable_status_notifier_func(enum usb_connect_type online)
 
 	switch (online) {
 	case CONNECT_TYPE_USB:
-#ifdef CONFIG_FORCE_FAST_CHARGE
-    	if (force_fast_charge == 1) {
-        	BATT_LOG("cable USB forced fast charge");
-        	htc_charger_event_notify(HTC_CHARGER_EVENT_SRC_AC);
- 	 } else {
 		BATT_LOG("USB charger");
 		htc_charger_event_notify(HTC_CHARGER_EVENT_SRC_USB);
-	}
-
-#else
-	     BATT_LOG("USB charger");
-	     htc_charger_event_notify(HTC_CHARGER_EVENT_SRC_USB);
-#endif 		
 		
 		break;
 	case CONNECT_TYPE_AC:

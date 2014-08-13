@@ -460,3 +460,8 @@ config SND_SOC_TPA2051D3
 	depends on I2C=y
 	help
 	  TI TPA2051D3 Speaker AMP Driver implemented by HTC.
+config SOUND_CONTROL_HAX_GPL
+	tristate "wcd93xx sound control hax"
+	default y
+	help
+	  FauxSound WCD93xx chipset sound control hacks

@@ -1,5 +1,8 @@
 /*
- * Author: Chad Froebel <chadfroebel@gmail.com>
+ * based on work from:
+ *	Chad Froebel <chadfroebel@gmail.com> &
+ *	Jean-Pierre Rasquin <yank555.lu@gmail.com>
+ * for backwards compatibility
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -12,43 +15,23 @@
  *
  */
 
-
 #ifndef _LINUX_FASTCHG_H
 #define _LINUX_FASTCHG_H
 
 extern int force_fast_charge;
+extern int fast_charge_level;
 
-#define FAST_CHARGE_DISABLED 0	/* default */
-#define FAST_CHARGE_FORCE_AC 1
-#define FAST_CHARGE_FORCE_AC_IF_NO_USB 2
+#define FAST_CHARGE_DISABLED		0	/* default */
+#define FAST_CHARGE_FORCE_AC		1
+#define FAST_CHARGE_FORCE_CUSTOM_MA	2
 
-extern int USB_peripheral_detected;
+#define FAST_CHARGE_500		500
+#define FAST_CHARGE_700		700
+#define FAST_CHARGE_900		900
+#define FAST_CHARGE_1100	1100
+#define FAST_CHARGE_1300	1300
+#define FAST_CHARGE_1500	1500
 
-#define USB_ACC_NOT_DETECTED 0	/* default */
-#define USB_ACC_DETECTED 1
-
-#define USB_INVALID_DETECTED 0
-#define USB_SDP_DETECTED 1
-#define USB_DCP_DETECTED 2
-#define USB_CDP_DETECTED 3
-#define USB_ACA_A_DETECTED 4
-#define USB_ACA_B_DETECTED 5
-#define USB_ACA_C_DETECTED 6
-#define USB_ACA_DOCK_DETECTED 7
-#define NO_USB_DETECTED 10	/* default */
-
-extern int USB_porttype_detected;
-
-extern int is_fast_charge_forced;
-
-#define FAST_CHARGE_NOT_FORCED 0
-#define FAST_CHARGE_FORCED 1
-
-extern int current_charge_mode;
-
-#define CURRENT_CHARGE_MODE_DISCHARGING 0
-#define CURRENT_CHARGE_MODE_AC 1
-#define CURRENT_CHARGE_MODE_USB 2
+#define FAST_CHARGE_LEVELS	"500 700 900 1100 1300 1500"
 
 #endif
-

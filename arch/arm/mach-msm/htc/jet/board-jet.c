@@ -92,9 +92,6 @@
 #endif
 #include <mach/htc_headset_mgr.h>
 #include <mach/htc_headset_pmic.h>
-#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
-#include <mach/htc_headset_one_wire.h>
-#endif
 #include <mach/cable_detect.h>
 
 #include "timer.h"
@@ -139,8 +136,8 @@ unsigned skuid;
 static void config_flashlight_gpios(void)
 {
 	static uint32_t flashlight_gpio_table[] = {
-		GPIO_CFG(JET_GPIO_TORCH_FLASHz, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-		GPIO_CFG(JET_GPIO_DRIVER_EN, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
+		GPIO_CFG(32, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
+		GPIO_CFG(33, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 	};
 
 	gpio_tlmm_config(flashlight_gpio_table[0], GPIO_CFG_ENABLE);
@@ -149,10 +146,10 @@ static void config_flashlight_gpios(void)
 
 static struct TPS61310_flashlight_platform_data jet_flashlight_data = {
 	.gpio_init = config_flashlight_gpios,
-	.tps61310_strb0 = JET_GPIO_DRIVER_EN,
-	.tps61310_strb1 = JET_GPIO_TORCH_FLASHz,
+	.tps61310_strb0 = 33,
+	.tps61310_strb1 = 32,
+	.led_count = 1,
 	.flash_duration_ms = 600,
-	.mode_pin_suspend_state_low = 1,
 };
 
 static struct i2c_board_info i2c_tps61310_flashlight[] = {
@@ -1300,167 +1297,6 @@ static struct platform_device htc_battery_pdev = {
 };
 #endif /* CONFIG_HTC_BATT_8960 */
 
-struct pm8xxx_gpio_init {
-	unsigned			gpio;
-	struct pm_gpio			config;
-};
-
-#define PM8XXX_GPIO_INIT(_gpio, _dir, _buf, _val, _pull, _vin, _out_strength, \
-			_func, _inv, _disable) \
-{ \
-	.gpio	= PM8921_GPIO_PM_TO_SYS(_gpio), \
-	.config	= { \
-		.direction	= _dir, \
-		.output_buffer	= _buf, \
-		.output_value	= _val, \
-		.pull		= _pull, \
-		.vin_sel	= _vin, \
-		.out_strength	= _out_strength, \
-		.function	= _func, \
-		.inv_int_pol	= _inv, \
-		.disable_pin	= _disable, \
-	} \
-}
-
-static uint32_t headset_cpu_gpio[] = {
-#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
-	GPIO_CFG(JET_GPIO_AUD_1WIRE_DO, 1, GPIO_CFG_OUTPUT,
-		 GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-	GPIO_CFG(JET_GPIO_AUD_1WIRE_DI, 1, GPIO_CFG_INPUT,
-		 GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-#endif
-	GPIO_CFG(JET_GPIO_V_HSMIC_2v85_EN, 0, GPIO_CFG_OUTPUT,
-		 GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-};
-
-#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
-static uint32_t headset_1wire_gpio[] = {
-	GPIO_CFG(JET_GPIO_AUD_1WIRE_DI, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL,
-		 GPIO_CFG_2MA),
-	GPIO_CFG(JET_GPIO_AUD_1WIRE_DO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
-		 GPIO_CFG_2MA),
-	GPIO_CFG(JET_GPIO_AUD_1WIRE_DI, 1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL,
-		 GPIO_CFG_2MA),
-	GPIO_CFG(JET_GPIO_AUD_1WIRE_DO, 1, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
-		 GPIO_CFG_2MA),
-};
-#endif
-
-struct pm8xxx_gpio_init headset_rx[] = {
-#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
-	PM8XXX_GPIO_INIT(JET_GPIO_PM_AUD_1WIRE_DO, PM_GPIO_DIR_IN,
-			 PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-			 PM_GPIO_VIN_S4, PM_GPIO_STRENGTH_NO,
-			 PM_GPIO_FUNC_NORMAL, 0, 0),
-	PM8XXX_GPIO_INIT(JET_GPIO_PM_AUD_1WIRE_O, PM_GPIO_DIR_OUT,
-			 PM_GPIO_OUT_BUF_OPEN_DRAIN, 0, PM_GPIO_PULL_NO,
-			 PM_GPIO_VIN_L17, PM_GPIO_STRENGTH_HIGH,
-			 PM_GPIO_FUNC_NORMAL, 0, 1),
-	PM8XXX_GPIO_INIT(JET_GPIO_PM_AUD_1WIRE_DI, PM_GPIO_DIR_OUT,
-			 PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-			 PM_GPIO_VIN_S4, PM_GPIO_STRENGTH_HIGH,
-			 PM_GPIO_FUNC_PAIRED, 0, 0),
-#endif
-	PM8XXX_GPIO_INIT(JET_GPIO_PM_AUD_REMO_PRESz, PM_GPIO_DIR_IN,
-			 PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-			 PM_GPIO_VIN_L17, PM_GPIO_STRENGTH_LOW,
-			 PM_GPIO_FUNC_PAIRED, 0, 0),
-};
-
-struct pm8xxx_gpio_init headset_rx_xc[] = {
-#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
-	PM8XXX_GPIO_INIT(JET_GPIO_PM_AUD_1WIRE_DO, PM_GPIO_DIR_IN,
-			 PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-			 PM_GPIO_VIN_S4, PM_GPIO_STRENGTH_NO,
-			 PM_GPIO_FUNC_PAIRED, 0, 0),
-	PM8XXX_GPIO_INIT(JET_GPIO_PM_AUD_1WIRE_O, PM_GPIO_DIR_OUT,
-			 PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-			 PM_GPIO_VIN_L17, PM_GPIO_STRENGTH_HIGH,
-			 PM_GPIO_FUNC_PAIRED, 0, 0),
-	PM8XXX_GPIO_INIT(JET_GPIO_PM_AUD_1WIRE_DI, PM_GPIO_DIR_OUT,
-			 PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-			 PM_GPIO_VIN_S4, PM_GPIO_STRENGTH_HIGH,
-			 PM_GPIO_FUNC_PAIRED, 0, 0),
-	PM8XXX_GPIO_INIT(JET_GPIO_NC_PMGPIO_40, PM_GPIO_DIR_OUT,
-			 PM_GPIO_OUT_BUF_CMOS, 1, PM_GPIO_PULL_NO,
-			 PM_GPIO_VIN_S4, PM_GPIO_STRENGTH_HIGH,
-			 PM_GPIO_FUNC_NORMAL, 0, 0),
-#endif
-	PM8XXX_GPIO_INIT(JET_GPIO_PM_AUD_REMO_PRESz, PM_GPIO_DIR_IN,
-			 PM_GPIO_OUT_BUF_CMOS, 0, PM_GPIO_PULL_NO,
-			 PM_GPIO_VIN_L17, PM_GPIO_STRENGTH_LOW,
-			 PM_GPIO_FUNC_PAIRED, 0, 0),
-};
-
-static void headset_init(void)
-{
-	int i = 0;
-	int rc = 0;
-
-	pr_info("[HS_BOARD] (%s) Headset initiation\n", __func__);
-
-	for (i = 0; i < ARRAY_SIZE(headset_cpu_gpio); i++)
-		gpio_tlmm_config(headset_cpu_gpio[i], GPIO_CFG_ENABLE);
-
-	gpio_set_value(JET_GPIO_V_HSMIC_2v85_EN, 0);
-
-	if (system_rev < 2) {
-		for (i = 0; i < ARRAY_SIZE(headset_rx); i++) {
-			rc = pm8xxx_gpio_config(headset_rx[i].gpio,
-						&headset_rx[i].config);
-			if (rc)
-				pr_info("[HS_BOARD] %s: Config ERROR: GPIO=%u, rc=%d\n",
-					__func__, headset_rx[i].gpio, rc);
-		}
-	} else {
-		for (i = 0; i < ARRAY_SIZE(headset_rx_xc); i++) {
-			rc = pm8xxx_gpio_config(headset_rx_xc[i].gpio,
-						&headset_rx_xc[i].config);
-			if (rc)
-				pr_info("[HS_BOARD] %s: Config ERROR: GPIO=%u, rc=%d\n",
-					__func__, headset_rx_xc[i].gpio, rc);
-		}
-	}
-}
-
-static void headset_power(int enable)
-{
-	if (system_rev < 1)
-		return;
-
-	pr_info("[HS_BOARD] (%s) Set MIC bias %d\n", __func__, enable);
-
-	if (enable)
-		gpio_set_value(JET_GPIO_V_HSMIC_2v85_EN, 1);
-	else
-		gpio_set_value(JET_GPIO_V_HSMIC_2v85_EN, 0);
-}
-
-#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
-static void uart_tx_gpo(int mode)
-{
-	switch (mode) {
-		case 0:
-			gpio_tlmm_config(headset_1wire_gpio[1], GPIO_CFG_ENABLE);
-			gpio_set_value_cansleep(JET_GPIO_AUD_1WIRE_DO, 0);
-			break;
-		case 1:
-			gpio_tlmm_config(headset_1wire_gpio[1], GPIO_CFG_ENABLE);
-			gpio_set_value_cansleep(JET_GPIO_AUD_1WIRE_DO, 1);
-			break;
-		case 2:
-			gpio_tlmm_config(headset_1wire_gpio[3], GPIO_CFG_ENABLE);
-			break;
-	}
-}
-
-static void uart_lv_shift_en(int enable)
-{
-	gpio_set_value_cansleep(PM8921_GPIO_PM_TO_SYS(JET_GPIO_NC_PMGPIO_40),
-				enable);
-}
-#endif
-
 /* HTC_HEADSET_PMIC Driver */
 static struct htc_headset_pmic_platform_data htc_headset_pmic_data = {
 	.driver_flag		= DRIVER_HS_PMIC_ADC,
@@ -1487,30 +1323,9 @@ static struct platform_device htc_headset_pmic = {
 	},
 };
 
-#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
-static struct htc_headset_1wire_platform_data htc_headset_1wire_data = {
-	.tx_level_shift_en	= PM8921_GPIO_PM_TO_SYS(JET_GPIO_NC_PMGPIO_40),
-	.uart_sw		= 0,
-	.one_wire_remote	={0x7E, 0x7F, 0x7D, 0x7F, 0x7B, 0x7F},
-	.remote_press		= 0,
-	.onewire_tty_dev	= "/dev/ttyHSL1",
-};
-
-static struct platform_device htc_headset_one_wire = {
-	.name	= "HTC_HEADSET_1WIRE",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &htc_headset_1wire_data,
-	},
-};
-#endif
-
 /* HTC_HEADSET_MGR Driver */
 static struct platform_device *headset_devices[] = {
 	&htc_headset_pmic,
-#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
-	&htc_headset_one_wire,
-#endif
 	/* Please put the headset detection driver on the last */
 };
 
@@ -1518,11 +1333,11 @@ static struct headset_adc_config htc_headset_mgr_config[] = {
 	{
 		.type = HEADSET_MIC,
 		.adc_max = 1530,
-		.adc_min = 1244,
+		.adc_min = 1223,
 	},
 	{
 		.type = HEADSET_BEATS,
-		.adc_max = 1243,
+		.adc_max = 1222,
 		.adc_min = 916,
 	},
 	{
@@ -1531,7 +1346,7 @@ static struct headset_adc_config htc_headset_mgr_config[] = {
 		.adc_min = 566,
 	},
 	{
-		.type = HEADSET_MIC,
+		.type = HEADSET_METRICO, /* For MOS test */
 		.adc_max = 565,
 		.adc_min = 255,
 	},
@@ -1548,12 +1363,6 @@ static struct htc_headset_mgr_platform_data htc_headset_mgr_data = {
 	.headset_devices	= headset_devices,
 	.headset_config_num	= ARRAY_SIZE(htc_headset_mgr_config),
 	.headset_config		= htc_headset_mgr_config,
-	.headset_init		= headset_init,
-	.headset_power		= headset_power,
-#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
-	.uart_tx_gpo		= uart_tx_gpo,
-	.uart_lv_shift_en	= uart_lv_shift_en,
-#endif
 };
 
 static struct platform_device htc_headset_mgr = {

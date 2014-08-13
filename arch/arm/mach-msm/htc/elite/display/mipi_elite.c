@@ -9,6 +9,7 @@
 
 static struct msm_panel_common_pdata *mipi_elite_pdata;
 static int mipi_elite_lcd_init(void);
+static struct dcs_cmd_req cmdreq;
 // Selected codes
 static struct dsi_cmd_desc *elite_video_on_cmds = NULL;
 static int elite_video_on_cmds_count = 0;
@@ -1423,8 +1424,7 @@ static struct dsi_cmd_desc *cabc_cmds = cabc_off; /* default disable cabc */
 
 #endif
 
-static int elite_send_display_cmds(struct dsi_cmd_desc *cmd, int cnt,
-		bool clk_ctrl)
+static int elite_send_display_cmds(struct dsi_cmd_desc *cmd, int cnt)
 {
 	int ret = 0;
 	struct dcs_cmd_req cmdreq;
@@ -1432,8 +1432,6 @@ static int elite_send_display_cmds(struct dsi_cmd_desc *cmd, int cnt,
 	cmdreq.cmds = cmd;
 	cmdreq.cmds_cnt = cnt;
 	cmdreq.flags = CMD_REQ_COMMIT;
-	if (clk_ctrl)
-		cmdreq.flags |= CMD_CLK_CTRL;
 	cmdreq.rlen = 0;
 	cmdreq.cb = NULL;
 
@@ -1467,11 +1465,9 @@ static int mipi_elite_lcd_on(struct platform_device *pdev)
 	}
 
 	if (panel_type != PANEL_ID_ELITE_SHARP_HX) {
-		elite_send_display_cmds(nvt_LowTemp_wrkr_enter,
-				ARRAY_SIZE(nvt_LowTemp_wrkr_enter), false);
+		elite_send_display_cmds(nvt_LowTemp_wrkr_enter, ARRAY_SIZE(nvt_LowTemp_wrkr_enter));
 
-		elite_send_display_cmds(nvt_LowTemp_wrkr_exit,
-				ARRAY_SIZE(nvt_LowTemp_wrkr_exit), false);
+		elite_send_display_cmds(nvt_LowTemp_wrkr_exit, ARRAY_SIZE(nvt_LowTemp_wrkr_exit));
 
 		gpio_set_value(ELITE_GPIO_LCD_RSTz, 0);
 		hr_msleep(1);
@@ -1486,8 +1482,7 @@ static int mipi_elite_lcd_on(struct platform_device *pdev)
 			panel_type == PANEL_ID_ELITE_SHARP_NT_C1 ||
 			panel_type == PANEL_ID_ELITE_SHARP_NT_C2 ||
 			panel_type == PANEL_ID_ELITE_SHARP_HX) {
-		elite_send_display_cmds(elite_video_on_cmds,
-				elite_video_on_cmds_count, false);
+		elite_send_display_cmds(elite_video_on_cmds, elite_video_on_cmds_count);
 		pr_info("%s: panel_type (%d)", __func__, panel_type);
 	} else
 		pr_err("%s: panel_type is not supported!(%d)", __func__, panel_type);
@@ -1511,8 +1506,7 @@ static int mipi_elite_lcd_off(struct platform_device *pdev)
 		return 0;
 
 	if (panel_type != PANEL_ID_NONE)
-		elite_send_display_cmds(elite_display_off_cmds,
-				elite_display_off_cmds_count, false);
+		elite_send_display_cmds(elite_display_off_cmds, elite_display_off_cmds_count);
 
 	mipi_lcd_on = 0;
 
@@ -1549,12 +1543,22 @@ static void mipi_elite_set_backlight(struct msm_fb_data_type *mfd)
 	}
 
 	if (mfd->bl_level == 0) {
-		elite_send_display_cmds(disable_dim, ARRAY_SIZE(disable_dim),
-				false);
+		cmdreq.cmds = disable_dim;
+		cmdreq.cmds_cnt = ARRAY_SIZE(disable_dim);
+		cmdreq.flags = CMD_REQ_COMMIT;
+		cmdreq.rlen = 0;
+		cmdreq.cb = NULL;
+
+		mipi_dsi_cmdlist_put(&cmdreq);
 	}
 
-	elite_send_display_cmds(elite_cmd_backlight_cmds,
-			elite_cmd_backlight_cmds_count, true);
+	cmdreq.cmds = elite_cmd_backlight_cmds;
+	cmdreq.cmds_cnt = elite_cmd_backlight_cmds_count;
+	cmdreq.flags = CMD_REQ_COMMIT;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+
+	mipi_dsi_cmdlist_put(&cmdreq);
 }
 
 static void mipi_elite_per_panel_fcts_init(void)
@@ -1616,11 +1620,10 @@ static int __devinit mipi_elite_lcd_probe(struct platform_device *pdev)
 
 /* HTC specific functionality */
 #ifdef CONFIG_FB_MSM_CABC
-void mipi_elite_enable_ic_cabc(int cabc, bool dim_on,
-		struct msm_fb_data_type *mfd)
+void mipi_elite_enable_ic_cabc(int cabc, bool dim_on, struct msm_fb_data_type *mfd)
 {
 	if (dim_on)
-		cabc_cmds = enable_dim;
+		dim_cmds = enable_dim;
 	if (cabc == 1)
 		cabc_cmds = cabc_on_ui;
 	else if (cabc == 2)
@@ -1628,7 +1631,13 @@ void mipi_elite_enable_ic_cabc(int cabc, bool dim_on,
 	else if (cabc == 3)
 		cabc_cmds = cabc_on_moving;
 
-	elite_send_display_cmds(cabc_cmds, ARRAY_SIZE(cabc_cmds), false);
+	cmdreq.cmds = dim_cmds;
+	cmdreq.cmds_cnt = ARRAY_SIZE(enable_dim);
+	cmdreq.flags = CMD_REQ_COMMIT;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+
+	mipi_dsi_cmdlist_put(&cmdreq);
 }
 #endif
 
