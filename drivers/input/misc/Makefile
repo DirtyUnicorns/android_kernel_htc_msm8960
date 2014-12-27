@@ -87,3 +87,4 @@ obj-$(CONFIG_SENSORS_LSM330_GYRO)	+= lsm330_gyr.o
 obj-$(CONFIG_OPTICAL_GP2A)		+= gp2a_proximity.o gp2a_light.o gp2a_proc.o
 obj-$(CONFIG_SENSORS_K3DH)		+= k3dh.o orientation.o
 obj-$(CONFIG_GYRO_K3G)			+= k3g.o
+obj-$(CONFIG_ENHANCED_BLN)		+= enhanced_bln.o
