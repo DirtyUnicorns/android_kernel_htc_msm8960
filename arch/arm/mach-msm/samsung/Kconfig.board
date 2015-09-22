@@ -1,3 +1,6 @@
 #
 # Include the specific Kconfig file for SAMSUNG board
 #
+
+# CELOX
+source "arch/arm/mach-msm/samsung/celox/Kconfig"

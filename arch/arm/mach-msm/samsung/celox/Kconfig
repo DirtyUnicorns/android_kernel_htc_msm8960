@@ -1,0 +1,41 @@
+config BOARD_HEADER_FILE
+	string "SAMSUNG board specific header file name"
+	default ""
+
+config MACH_CELOX
+	depends on ARCH_MSM8X60
+	select MACH_SAMSUNG
+        select REMOVE_SMI_2X_CLK
+	bool "Samsung Celox"
+	help
+	  Support for the Samsung Celox family.
+
+choice
+	prompt "Celox Model"
+	depends on MACH_CELOX
+
+	config USA_MODEL_SGH_I727
+		select TARGET_LOCALE_USA
+		bool "USA ATT SGH-I727"
+
+	config USA_MODEL_SGH_I727R
+		depends on USA_MODEL_SGH_I727
+		bool "USA ATT SGH-I727R"
+
+	config EUR_MODEL_GT_I9210
+		depends on USA_MODEL_SGH_I727
+		bool "EUR OPEN GT-I9210"
+
+	config USA_MODEL_SGH_T989
+		select TARGET_LOCALE_USA
+		bool "USA ATT SGH-T989"
+
+	config USA_MODEL_SGH_T769
+		select TARGET_LOCALE_USA
+		bool "USA TMO SGH-T769"
+
+	config USA_MODEL_SGH_I577
+		select TARGET_LOCALE_USA
+		bool "USA ATT SGH-I577"
+
+endchoice

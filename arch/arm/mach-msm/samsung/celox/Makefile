@@ -1,0 +1,10 @@
+obj-$(CONFIG_MACH_CELOX) += board-celox.o
+obj-$(CONFIG_MACH_CELOX) += board-celox-gpiomux.o
+obj-$(CONFIG_MACH_CELOX) += board-celox-keypad.o
+obj-$(CONFIG_MACH_CELOX) += board-celox-storage.o
+obj-$(CONFIG_MACH_CELOX) += board-celox-wifi.o
+obj-$(CONFIG_MACH_CELOX) += board-celox-regulator.o
+obj-$(CONFIG_MACH_CELOX) += board-celox-pmic.o
+obj-$(CONFIG_MACH_CELOX) += board-celox-rfkill.o
+obj-$(CONFIG_MACH_CELOX) += board-celox-mdm.o
+obj-$(CONFIG_MACH_CELOX) += display/
