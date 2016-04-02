@@ -32,6 +32,9 @@
 #include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/debugfs.h>
+#ifdef CONFIG_MACH_SAMSUNG
+#include <linux/workqueue.h>
+#endif
 
 /* DEFINES AND MACROS */
 #define MAX_NUM_DEVICES		1
@@ -223,6 +226,11 @@ static DEFINE_SPINLOCK(lock1);
 static unsigned long lock_flags1;
 static DEFINE_SPINLOCK(lock2);
 static unsigned long lock_flags2;
+
+#ifdef CONFIG_MACH_SAMSUNG
+static void sdio_dld_tear_down(struct work_struct *work);
+DECLARE_WORK(cleanup, sdio_dld_tear_down);
+#endif
 
 /*
  * sdio_op_mode sets the operation mode of the sdio_dloader -
@@ -1185,7 +1193,9 @@ static int sdio_dld_open(struct tty_struct *tty, struct file *file)
   */
 static void sdio_dld_close(struct tty_struct *tty, struct file *file)
 {
+#ifndef CONFIG_MACH_SAMSUNG
 	int status = 0;
+#endif
 	struct sdioc_reg_chunk *reg = &sdio_dld->sdio_dloader_data.sdioc_reg;
 
 	/* informing the SDIOC that it can exit boot phase */
@@ -1200,6 +1210,7 @@ static void sdio_dld_close(struct tty_struct *tty, struct file *file)
 		   sdio_dld->dld_main_thread.exit_wait.wake_up_signal);
 	pr_debug(MODULE_NAME ": %s - CLOSING - WOKE UP...", __func__);
 
+#ifndef CONFIG_MACH_SAMSUNG
 	del_timer_sync(&sdio_dld->timer);
 	del_timer_sync(&sdio_dld->push_timer);
 
@@ -1213,6 +1224,7 @@ static void sdio_dld_close(struct tty_struct *tty, struct file *file)
 		pr_err(MODULE_NAME ": %s - tty_unregister_driver() failed\n",
 		       __func__);
 	}
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 	gd.curr_i = curr_index;
@@ -1263,9 +1275,14 @@ static void sdio_dld_close(struct tty_struct *tty, struct file *file)
 	if (sdio_dld->done_callback)
 		sdio_dld->done_callback();
 
+#ifdef CONFIG_MACH_SAMSUNG
+	schedule_work(&cleanup);
+	pr_info(MODULE_NAME ": %s - Bootloader done, returning...", __func__);
+#else
 	pr_info(MODULE_NAME ": %s - Freeing sdio_dld data structure, and "
 		" returning...", __func__);
 	kfree(sdio_dld);
+#endif
 }
 
 /**
@@ -2533,6 +2550,24 @@ exit_err:
 	kfree(sdio_dld);
 	return status;
 }
+
+#ifdef CONFIG_MACH_SAMSUNG
+static void sdio_dld_tear_down(struct work_struct *work)
+{
+	int status = 0;
+
+	del_timer_sync(&sdio_dld->timer);
+	del_timer_sync(&sdio_dld->push_timer);
+	sdio_dld_dealloc_local_buffers();
+	tty_unregister_device(sdio_dld->tty_drv, 0);
+	status = tty_unregister_driver(sdio_dld->tty_drv);
+	if (status) {
+		pr_err(MODULE_NAME ": %s - tty_unregister_driver() failed\n", __func__);
+	}
+
+	kfree(sdio_dld);
+}
+#endif
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SDIO Downloader");

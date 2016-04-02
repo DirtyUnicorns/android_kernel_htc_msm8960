@@ -352,6 +352,9 @@ struct sdio_al {
 	void *subsys_notif_handle;
 	int sdioc_major;
 	int skip_print_info;
+#ifdef CONFIG_MACH_SAMSUNG
+	unsigned int wakelock_time;
+#endif
 };
 
 struct sdio_al_work {
@@ -658,6 +661,40 @@ static void sdio_al_debugfs_cleanup(void)
 }
 #endif
 
+#ifdef CONFIG_MACH_SAMSUNG
+extern struct class *sec_class;
+struct device *sdioal_dev;
+
+static ssize_t show_waketime(struct device *d,
+		struct device_attribute *attr, char *buf)
+{
+	if (!sdioal_dev)
+		return 0;
+
+	return sprintf(buf, "%u\n", sdio_al->wakelock_time);
+}
+
+static ssize_t store_waketime(struct device *d,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int r;
+	unsigned long msec;
+	
+	if (!sdioal_dev)
+		return count;
+
+	r = strict_strtoul(buf, 10, &msec);
+	if (r)
+		return count;
+
+	sdio_al->wakelock_time = (msec/1000);
+	return count;
+}
+
+static DEVICE_ATTR(waketime, 0664, show_waketime, store_waketime);
+
+#endif
+
 static int sdio_al_log(struct sdio_al_local_log *log, const char *fmt, ...)
 {
 	va_list args;
@@ -855,6 +892,10 @@ static void sdio_al_vote_for_sleep(struct sdio_al_device *sdio_al_dev,
 	if (is_vote_for_sleep) {
 		pr_debug(MODULE_NAME ": %s - sdio vote for Sleep", __func__);
 		wake_unlock(&sdio_al_dev->wake_lock);
+#ifdef CONFIG_MACH_SAMSUNG
+		if((sdio_al->wakelock_time) && (sdio_al_dev->card->host->index == 1))
+			wake_lock_timeout(&sdio_al_dev->wake_lock, (sdio_al->wakelock_time)*HZ);
+#endif
 	} else {
 		pr_debug(MODULE_NAME ": %s - sdio vote against sleep",
 			  __func__);
@@ -1935,8 +1976,10 @@ static int read_sdioc_software_header(struct sdio_al_device *sdio_al_dev,
 			ch->state = SDIO_CHANNEL_STATE_INVALID;
 		}
 
+#ifndef CONFIG_MACH_SAMSUNG
 		sdio_al_logi(sdio_al_dev->dev_log, MODULE_NAME ":Channel=%s, "
 				"state=%d\n", ch->name,	ch->state);
+#endif
 	}
 
 	return 0;
@@ -3567,6 +3610,14 @@ static void msm_sdio_al_shutdown(struct platform_device *pdev)
 		}
 		sdio_al_dev = sdio_al->devices[i];
 
+#ifdef CONFIG_MACH_SAMSUNG
+		sdio_al_dev->bootloader_done = 1;
+		wake_up(&sdio_al_dev->wait_mbox);
+
+		sdio_al_logi(&sdio_al->gen_log, MODULE_NAME
+			"set bootloader_done event set...");
+#endif
+
 		if (sdio_al_claim_mutex_and_verify_dev(sdio_al_dev, __func__))
 			return;
 
@@ -4313,6 +4364,15 @@ static int __init sdio_al_init(void)
 	sdio_register_driver(&sdio_al_sdiofn_driver);
 
 	spin_lock_init(&sdio_al->gen_log.log_lock);
+
+#ifdef CONFIG_MACH_SAMSUNG
+	sdioal_dev = device_create(sec_class, NULL, 0, NULL, "sdio_al");
+	if (IS_ERR(sdioal_dev))
+		printk("[sdio_al] Failed to create device(sdioal_dev)! \n");
+
+	if (device_create_file(sdioal_dev, &dev_attr_waketime) < 0)
+		printk("[sdio_al] Failed to create device file(%s)!\n", dev_attr_waketime.attr.name);	
+#endif
 
 exit:
 	if (ret)

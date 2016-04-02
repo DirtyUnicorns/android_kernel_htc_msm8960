@@ -315,6 +315,9 @@ static void sdio_tty_notify(void *priv, unsigned event)
 	if (!sdio_tty_drv) {
 		pr_err(SDIO_TTY_MODULE_NAME ": %s: NULL sdio_tty_drv",
 			__func__);
+#ifdef CONFIG_MACH_SAMSUNG
+		return ;
+#endif
 	}
 
 	if (sdio_tty_drv->sdio_tty_state != TTY_OPENED) {
@@ -395,6 +398,10 @@ static int sdio_tty_open(struct tty_struct *tty, struct file *file)
 		return -ENOMEM;
 	}
 
+#ifdef CONFIG_MACH_SAMSUNG
+	sdio_tty_drv->sdio_tty_state = TTY_OPENED;
+#endif
+
 	if (!sdio_tty_drv->is_sdio_open) {
 		ret = sdio_open(sdio_tty_drv->sdio_ch_name, &sdio_tty_drv->ch,
 				sdio_tty_drv, sdio_tty_notify);
@@ -418,7 +425,10 @@ static int sdio_tty_open(struct tty_struct *tty, struct file *file)
 
 	}
 
+
+#ifndef CONFIG_MACH_SAMSUNG
 	sdio_tty_drv->sdio_tty_state = TTY_OPENED;
+#endif
 
 	pr_info(SDIO_TTY_MODULE_NAME ": %s: TTY device(%s) opened\n",
 		__func__, sdio_tty_drv->tty_dev_name);
@@ -459,13 +469,19 @@ static void sdio_tty_close(struct tty_struct *tty, struct file *file)
 	if (--sdio_tty_drv->tty_open_count != 0)
 		return;
 
+#ifdef CONFIG_MACH_SAMSUNG
+	sdio_tty_drv->sdio_tty_state = TTY_CLOSED;
+#endif
+
 	flush_workqueue(sdio_tty_drv->workq);
 	destroy_workqueue(sdio_tty_drv->workq);
 
 	kfree(sdio_tty_drv->read_buf);
 	sdio_tty_drv->read_buf = NULL;
 
+#ifndef CONFIG_MACH_SAMSUNG
 	sdio_tty_drv->sdio_tty_state = TTY_CLOSED;
+#endif
 
 	pr_info(SDIO_TTY_MODULE_NAME ": %s: SDIO_TTY device(%s) closed\n",
 		__func__, sdio_tty_drv->tty_dev_name);
@@ -656,13 +672,18 @@ int sdio_tty_uninit_tty(void *sdio_tty_handle)
 
 static int sdio_tty_probe(struct platform_device *pdev)
 {
+#ifndef CONFIG_MACH_SAMSUNG
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	enum sdio_tty_devices device_id = id->driver_data;
+#else
+	enum sdio_tty_devices device_id = 0;
+#endif
 	char *device_name = NULL;
 	char *channel_name = NULL;
 	int debug_msg_on = 0;
 	int ret = 0;
 
+#ifndef CONFIG_MACH_SAMSUNG
 	pr_debug(SDIO_TTY_MODULE_NAME ": %s for %s", __func__, pdev->name);
 
 	switch (device_id) {
@@ -682,6 +703,14 @@ static int sdio_tty_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		break;
 	}
+#else
+	if (!strcmp(pdev->name, SDIO_TTY_CH_CSVT)) {
+		device_name = SDIO_TTY_CSVT_DEV;
+		channel_name = SDIO_TTY_CH_CSVT;
+		debug_msg_on = csvt_debug_msg_on;
+		device_id = SDIO_CSVT;
+	}
+#endif
 
 	if (device_name) {
 		ret = sdio_tty_init_tty(device_name, channel_name,
@@ -696,11 +725,24 @@ static int sdio_tty_probe(struct platform_device *pdev)
 
 static int sdio_tty_remove(struct platform_device *pdev)
 {
+#ifndef CONFIG_MACH_SAMSUNG
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	enum sdio_tty_devices device_id = id->driver_data;
+#else
+	enum sdio_tty_devices device_id = 0;
+#endif
 	struct sdio_tty *sdio_tty_drv = NULL;
 	int i = 0;
 	int ret = 0;
+
+#ifdef CONFIG_MACH_SAMSUNG
+	if (!strcmp(pdev->name, SDIO_TTY_CH_CSVT)) {
+		device_id = SDIO_CSVT;
+	} else {
+		pr_err(SDIO_TTY_MODULE_NAME ": %s: error no device for %s ",__func__, pdev->name);
+		return -ENODEV;
+	}
+#endif
 
 	pr_debug(SDIO_TTY_MODULE_NAME ": %s for %s", __func__, pdev->name);
 
@@ -730,9 +772,15 @@ static int sdio_tty_remove(struct platform_device *pdev)
 static struct platform_driver sdio_tty_pdrv = {
 	.probe		= sdio_tty_probe,
 	.remove		= sdio_tty_remove,
+#ifndef CONFIG_MACH_SAMSUNG
 	.id_table	= sdio_tty_id_table,
+#endif
 	.driver		= {
+#ifndef CONFIG_MACH_SAMSUNG
 		.name	= "SDIO_TTY",
+#else
+		.name	= "SDIO_CSVT",
+#endif
 		.owner	= THIS_MODULE,
 	},
 };
