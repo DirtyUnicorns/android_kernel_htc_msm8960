@@ -152,6 +152,7 @@ struct marimba_platform_data {
 	u32 (*marimba_gpio_config) (int);
 	u32 (*bahama_core_config) (int type);
 	u32 tsadc_ssbi_adap;
+	u32 (*timpani_reset_config) (void);
 };
 
 /*
@@ -180,6 +181,9 @@ int timpani_write(struct marimba*, u8 reg, u8 *value,
 				unsigned num_bytes);
 
 /* Get the detected codec type */
+#ifdef CONFIG_MACH_SAMSUNG
+int timpani_reset(void);
+#endif
 int adie_get_detected_codec_type(void);
 int adie_get_detected_connectivity_type(void);
 int marimba_gpio_config(int gpio_value);
