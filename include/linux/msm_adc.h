@@ -152,6 +152,13 @@ enum {
 	CHAN_PATH_TYPE_NONE = 0xffffffff
 };
 
+#if defined (CONFIG_MACH_SAMSUNG)
+#define CHANNEL_ADC_LIGHT_LUX	2
+#define CHANNEL_ADC_BATT_THERM	3
+#define CHANNEL_ADC_CHG_MONITOR 4
+#define CHANNEL_ADC_BATT_ID	5
+#define CHANNEL_ADC_PMIC_THERM	6
+#else
 #define CHANNEL_ADC_BATT_ID     0
 #define CHANNEL_ADC_BATT_THERM  1
 #define CHANNEL_ADC_BATT_AMON   2
@@ -161,6 +168,7 @@ enum {
 #define CHANNEL_ADC_CHG_MONITOR 6
 #define CHANNEL_ADC_VPH_PWR     7
 #define CHANNEL_ADC_USB_VBUS    8
+#endif
 #define CHANNEL_ADC_DIE_TEMP    9
 #define CHANNEL_ADC_DIE_TEMP_4K 0xa
 #define CHANNEL_ADC_XOTHERM     0xb
@@ -172,6 +180,7 @@ enum {
 #define CHANNEL_ADC_325_REF	0x11
 #define CHANNEL_ADC_FSM_THERM	0x12
 #define CHANNEL_ADC_PA_THERM	0x13
+
 
 enum {
 	CALIB_STARTED,

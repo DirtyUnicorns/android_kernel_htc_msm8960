@@ -104,6 +104,13 @@ enum {
 };
 #endif
 
+#ifdef CONFIG_MACH_SAMSUNG
+enum {
+	POWER_SUPPLY_CAPACITY_OTG_ENABLE = 0,
+	POWER_SUPPLY_CAPACITY_OTG_DISABLE,
+};
+#endif
+
 enum power_supply_property {
 	/* Properties of type `int' */
 	POWER_SUPPLY_PROP_STATUS = 0,
@@ -146,6 +153,10 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
 	POWER_SUPPLY_PROP_TIME_TO_FULL_AVG,
 	POWER_SUPPLY_PROP_TYPE, /* use power_supply.type instead */
+#ifdef CONFIG_MACH_SAMSUNG
+	POWER_SUPPLY_PROP_OTG,
+	POWER_SUPPLY_PROP_CURRENT_ADJ,
+#endif
 	POWER_SUPPLY_PROP_SCOPE,
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_PROP_MODEL_NAME,
@@ -162,6 +173,11 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_UPS,
 	POWER_SUPPLY_TYPE_MAINS,
 	POWER_SUPPLY_TYPE_USB,		/* Standard Downstream Port */
+#ifdef CONFIG_MACH_SAMSUNG
+	POWER_SUPPLY_TYPE_MISC,
+	POWER_SUPPLY_TYPE_CARDOCK,
+	POWER_SUPPLY_TYPE_UARTOFF,
+#endif
 #ifdef CONFIG_MACH_HTC
 	POWER_SUPPLY_TYPE_WIRELESS,	/* Wireless Charger */
 #endif

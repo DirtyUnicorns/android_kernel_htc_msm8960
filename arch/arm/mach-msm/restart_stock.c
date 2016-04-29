@@ -336,6 +336,19 @@ reset:
 	printk(KERN_ERR "Restarting has failed\n");
 }
 
+#ifdef CONFIG_BATTERY_SEC
+unsigned int sec_get_lpm_mode(void)
+{
+	unsigned int ret = 0;
+
+	pr_info("(%s) %x\n", __func__, (unsigned int)restart_reason);
+	if((unsigned int)restart_reason == 0x1A2B3C10)
+		ret = 1;
+	pr_emerg("(%s) %x\n", __func__, ret);
+	return ret;
+}
+#endif
+
 static int __init msm_pmic_restart_init(void)
 {
 	int rc;

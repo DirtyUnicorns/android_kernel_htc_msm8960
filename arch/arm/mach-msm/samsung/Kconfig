@@ -32,4 +32,10 @@ choice
 		  Support EUR Board
 endchoice
 
+config BATTERY_SEC
+	bool "SEC battery driver"
+	default n
+	help
+	  Say Y here to enable support for batteries with SEC features.
+
 endmenu
