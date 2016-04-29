@@ -484,6 +484,29 @@ struct platform_device *msm_add_gsbi9_uart(void)
 }
 #endif
 
+#if defined (CONFIG_MACH_SAMSUNG) && defined (CONFIG_TARGET_LOCALE_USA)
+static struct resource gsbi1_qup_i2c_resources[] = {
+	{
+		.name	= "qup_phys_addr",
+		.start	= MSM_GSBI1_QUP_PHYS,
+		.end	= MSM_GSBI1_QUP_PHYS + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "gsbi_qup_i2c_addr",
+		.start	= MSM_GSBI1_PHYS,
+		.end	= MSM_GSBI1_PHYS + 4 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "qup_err_intr",
+		.start	= GSBI1_QUP_IRQ,
+		.end	= GSBI1_QUP_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+#endif
+
 static struct resource gsbi3_qup_i2c_resources[] = {
 	{
 		.name	= "qup_phys_addr",
@@ -1008,6 +1031,16 @@ void __init msm8x60_check_2d_hardware(void)
 		kgsl_2d0_pdata.clk_map = 0;
 	}
 }
+
+#if defined (CONFIG_MACH_SAMSUNG) && defined (CONFIG_TARGET_LOCALE_USA)
+/* Use GSBI1 QUP for /dev/i2c-0 */
+struct platform_device msm_gsbi1_qup_i2c_device = {
+	.name		= "qup_i2c",
+	.id		= MSM_A2220_I2C_BUS_ID,
+	.num_resources	= ARRAY_SIZE(gsbi1_qup_i2c_resources),
+	.resource	= gsbi1_qup_i2c_resources,
+};
+#endif
 
 /* Use GSBI3 QUP for /dev/i2c-0 */
 struct platform_device msm_gsbi3_qup_i2c_device = {
