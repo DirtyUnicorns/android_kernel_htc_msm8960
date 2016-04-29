@@ -830,4 +830,10 @@ config SENSORS_K3DH
 	help
 	  Driver for STMicroelectronic K3DH accelerometer.
 
+config GYRO_K3G
+	tristate "K3G driver for s5pc210"
+	default n
+	help
+	  This option enables gyro sensors using K3G driver.
+
 source "drivers/input/misc/mpu3050/Kconfig"
