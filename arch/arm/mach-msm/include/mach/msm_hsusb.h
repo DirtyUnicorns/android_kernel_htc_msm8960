@@ -135,7 +135,9 @@ enum usb_switch_control {
 struct msm_hsusb_gadget_platform_data {
 	int *phy_init_seq;
 	void (*phy_reset)(void);
-
+#ifdef CONFIG_USB_SWITCH_FSA9480
+	void (*check_microusb)(void);
+#endif
 	int self_powered;
 	int is_phy_status_timer_on;
 };

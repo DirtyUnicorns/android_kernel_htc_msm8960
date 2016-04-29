@@ -1901,6 +1901,12 @@ static void usb_do_work(struct work_struct *w)
 				usb_reset(ui);
 				ui->state = USB_STATE_ONLINE;
 				usb_do_work_check_vbus(ui);
+#ifdef CONFIG_USB_SWITCH_FSA9480
+				if (ui->flags & USB_FLAG_VBUS_ONLINE) {
+					if (ui->pdata->check_microusb)
+						ui->pdata->check_microusb();
+				}
+#endif
 				ret = request_irq(otg->irq, usb_interrupt,
 							IRQF_SHARED,
 							ui->pdev->name, ui);
