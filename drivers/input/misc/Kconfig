@@ -816,4 +816,11 @@ config SENSORS_LSM330_GYRO
 
 	  Say Y here if you have a device containing LSM330 chip.
 
+config OPTICAL_GP2A
+	depends on I2C
+	tristate "GP2A driver"
+	default n
+	help
+	  This option enables proximity & light sensors using gp2a driver.
+
 source "drivers/input/misc/mpu3050/Kconfig"
