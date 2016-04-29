@@ -83,7 +83,11 @@ obj-$(CONFIG_PMIC8058_XOADC) += pmic8058-xoadc.o
 endif
 obj-$(CONFIG_QSEECOM) += qseecom.o
 obj-$(CONFIG_QFP_FUSE) += qfp_fuse.o
+ifeq ($(CONFIG_VIBETONZ),y)
+obj-y += vibetonz/
+else
 obj-y += tspdrv/
+endif
 obj-$(CONFIG_BU52031NVX) += pm8xxx-cradle.o
 obj-$(CONFIG_SLIMPORT_ANX7808)	+= slimport_anx7808/
 obj-$(CONFIG_CABLE_DETECT_8XXX)	+= cable_detect_8xxx.o

@@ -794,6 +794,12 @@ config MDMGPIO
 	  This driver can also be built as a module, choose M here: the
 	  module will be called mdmgpio.
 
+config VIBETONZ
+        tristate "Vibetonz"
+        default n
+        help
+          Say Y to enable Vibetonz support.
+
 config UID_CPUTIME
 	tristate "Per-UID cpu time statistics"
 	depends on PROFILING
