@@ -48,6 +48,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/mmc.h>
 
+#if defined(CONFIG_BCM4330)
+#include "../host/msm_sdcc.h"
+#endif
+
 /* If the device is not responding */
 #define MMC_CORE_TIMEOUT_MS	(10 * 60 * 1000) /* 10 minute timeout */
 
@@ -3465,6 +3469,9 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 {
 	struct mmc_host *host = container_of(
 		notify_block, struct mmc_host, pm_notify);
+#if defined(CONFIG_BCM4330)
+	struct msmsdcc_host *msmhost = mmc_priv(host);
+#endif
 	unsigned long flags;
 	int err = 0;
 
@@ -3518,6 +3525,12 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		}
 		host->rescan_disable = 0;
 		spin_unlock_irqrestore(&host->lock, flags);
+#if defined(CONFIG_BCM4330)
+		if (host->card && msmhost && msmhost->pdev_id == 4)
+			printk(KERN_INFO"%s(): WLAN SKIP DETECT CHANGE\n",
+					__func__);
+		else
+#endif
 		mmc_detect_change(host, 0);
 
 	}
