@@ -284,7 +284,7 @@ void msm_restart(char mode, const char *cmd)
 			unsigned long code;
 			code = simple_strtoul(cmd + 4, NULL, 16) & 0xff;
 			__raw_writel(0x6f656d00 | code, restart_reason);
-		// Palm specific start
+#if defined(CONFIG_MACH_TENDERLOIN)
 		} else if (!strcmp(cmd, "shutdown")) {
 		__raw_writel(RESTART_REASON_SHUTDOWN, restart_reason);
 		} else if (!strcmp(cmd, "recover")) {
@@ -297,18 +297,18 @@ void msm_restart(char mode, const char *cmd)
 			__raw_writel(RESTART_REASON_REBOOT, restart_reason);
 		} else if (!strcmp(cmd, "update")) {
 			__raw_writel(RESTART_REASON_UPDATE, restart_reason);
-			// Palm specific end
+#endif
 		} else {
 #if defined(CONFIG_MACH_TENDERLOIN)
-		/* use HPalm bootloader to reboot */
-		printk(KERN_INFO "%s: Initiating reboot via bootloader\n", __func__);
-		__raw_writel(RESTART_REASON_REBOOT, restart_reason);
+			/* use HPalm bootloader to reboot */
+			printk(KERN_INFO "%s: Initiating reboot via bootloader\n", __func__);
+			__raw_writel(RESTART_REASON_REBOOT, restart_reason);
 #else
-		__raw_writel(0x77665501, restart_reason);
+			__raw_writel(0x77665501, restart_reason);
 #endif
 		}
 	} else {
-#ifndef CONFIG_MACH_TENDERLOIN
+#if !defined(CONFIG_MACH_TENDERLOIN)
 		__raw_writel(0x77665501, restart_reason);
 #endif
 	}
