@@ -449,4 +449,10 @@ config MAX8903B_CHARGER
 	help
 	  Say Y to enable support for the MAX8903B charger.
 
+config CHARGER_SMB328A
+	bool "Enable SMB328A charger driver"
+	default n
+	help
+	  Say Y here to enable support for charger with SMB328A chip
+
 endif # POWER_SUPPLY

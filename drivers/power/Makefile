@@ -70,3 +70,4 @@ obj-$(CONFIG_CHARGER_SMB347)	+= smb347-charger.o
 obj-$(CONFIG_BATTERY_BCL)	+= battery_current_limit.o
 obj-$(CONFIG_AMP_RT5501)	+= pm8921-audio.o
 obj-$(CONFIG_MAX8903B_CHARGER)	+= max8903b_charger.o
+obj-$(CONFIG_CHARGER_SMB328A)	+= smb328a_charger.o
