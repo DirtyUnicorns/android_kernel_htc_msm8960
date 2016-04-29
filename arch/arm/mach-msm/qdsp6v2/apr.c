@@ -35,6 +35,19 @@
 #include <mach/subsystem_notif.h>
 #include <mach/subsystem_restart.h>
 
+#if defined(CONFIG_KOR_MODEL_SHV_E120L) || defined(CONFIG_KOR_MODEL_SHV_E160L)
+#define CONFIG_VPCM_INTERFACE_ON_SVLTE2
+#endif
+
+#if defined(CONFIG_KOR_MODEL_SHV_E110S) || defined(CONFIG_KOR_MODEL_SHV_E120S) \
+	|| defined(CONFIG_KOR_MODEL_SHV_E120K) || defined(CONFIG_USA_MODEL_SGH_T989) \
+	|| defined(CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_USA_MODEL_SGH_I757) \
+	|| defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) \
+	|| defined(CONFIG_JPN_MODEL_SC_03D) || defined(CONFIG_USA_MODEL_SGH_T769) \
+	|| defined(CONFIG_USA_MODEL_SGH_I717)
+#define CONFIG_VPCM_INTERFACE_ON_CSFB
+#endif
+
 static struct apr_q6 q6;
 static struct apr_client client[APR_DEST_MAX][APR_CLIENT_MAX];
 
@@ -293,6 +306,21 @@ int apr_send_pkt(void *handle, uint32_t *buf)
 
 	hdr->dest_svc = svc->id;
 
+#if defined(CONFIG_MACH_SAMSUNG)
+#if defined(CONFIG_VPCM_INTERFACE_ON_CSFB)
+	if ( hdr->opcode == 0x10001001 || hdr->opcode == 0x10001002) {
+		hdr->dest_domain = 0x03;
+		hdr->dest_svc = 0x02;
+	}
+#elif defined(CONFIG_VPCM_INTERFACE_ON_SVLTE2)
+	if ( hdr->opcode == 0x0001128D || hdr->opcode == 0x0001128E
+		|| hdr->opcode == 0x0001128F || hdr->opcode == 0x0001128C) {
+		hdr->dest_domain = 0x03;
+		hdr->dest_svc = 0x07;
+	}
+#endif
+#endif
+
 	w_len = apr_tal_write(clnt->handle, buf, hdr->pkt_size);
 	if (w_len != hdr->pkt_size)
 		pr_err("Unable to write APR pkt successfully: %d\n", w_len);
@@ -365,11 +393,28 @@ void apr_cb_func(void *buf, int len, void *priv)
 	}
 
 	svc = hdr->dest_svc;
+
+#if defined(CONFIG_MACH_SAMSUNG) \
+	&& defined(CONFIG_VPCM_INTERFACE_ON_SVLTE2)
+	/* If the incoming message is from modem domain and for CVP (VPCM hack) */
+	if (hdr->src_domain == APR_DOMAIN_MODEM && svc == APR_SVC_ADSP_CVP) {
+		src = APR_DEST_QDSP6;
+		clnt = APR_CLIENT_AUDIO;
+	} else
+#endif
 	if (hdr->src_domain == APR_DOMAIN_MODEM) {
 		src = APR_DEST_MODEM;
 		if (svc == APR_SVC_MVS || svc == APR_SVC_MVM ||
 		    svc == APR_SVC_CVS || svc == APR_SVC_CVP ||
+#if defined(CONFIG_MACH_SAMSUNG)
+#if defined(CONFIG_VPCM_INTERFACE_ON_CSFB)
+		    svc == APR_SVC_TEST_CLIENT || svc == 0x02)
+#elif defined(CONFIG_VPCM_INTERFACE_ON_SVLTE2)
+		    svc == APR_SVC_TEST_CLIENT || svc == 0x07)
+#endif
+#else
 		    svc == APR_SVC_TEST_CLIENT)
+#endif
 			clnt = APR_CLIENT_VOICE;
 		else {
 			pr_err("APR: Wrong svc :%d\n", svc);

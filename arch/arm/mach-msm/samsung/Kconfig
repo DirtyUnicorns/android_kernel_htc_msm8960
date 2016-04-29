@@ -38,4 +38,21 @@ config BATTERY_SEC
 	help
 	  Say Y here to enable support for batteries with SEC features.
 
+config SEC_AUDIO_DEVICE
+	bool "Sec AUDIO DEVICE"
+	help
+	  Support Sec audio Device
+
+config SEC_AUDIO_I2S_DRIVING_CURRENT
+	bool "Sec I2S Driving Current"
+	default n
+	help
+	  Support I2S driving current up
+
+config SEC_EXTRA_VOLUME_SOL
+	bool "Sec Extra Volume Solution"
+	default n
+	help
+	  Support Sec Extra Volume Solution
+
 endmenu

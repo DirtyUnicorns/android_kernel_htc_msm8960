@@ -1,6 +1,10 @@
 ifdef CONFIG_ARCH_MSM8X60
 obj-y += audio_dev_ctl.o
+ifdef CONFIG_MACH_SAMSUNG
+obj-y += board-msm8x60-audio-sec.o
+else
 obj-y += board-msm8x60-audio.o
+endif
 obj-y += snddev_icodec.o
 obj-y += snddev_ecodec.o snddev_mi2s.o snddev_virtual.o
 obj-y += pcm_out.o pcm_in.o fm.o

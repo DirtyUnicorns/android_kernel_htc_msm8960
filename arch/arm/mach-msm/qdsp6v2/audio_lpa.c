@@ -769,6 +769,15 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case AUDIO_SET_VOLUME:
+#ifdef CONFIG_MACH_SAMSUNG
+		if (audio->out_enabled) {
+			rc = q6asm_set_volume(audio->ac, arg);
+			if (rc < 0) {
+				pr_err("%s: Send Volume command failed"
+					" rc=%d\n", __func__, rc);
+			}
+		}
+#endif
 		break;
 
 	case AUDIO_SET_PAN:
@@ -819,7 +828,11 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			goto fail;
 		} else {
 			struct asm_softpause_params softpause = {
+#ifdef CONFIG_MACH_SAMSUNG
+				.enable = SOFT_PAUSE_DISABLE,
+#else
 				.enable = SOFT_PAUSE_ENABLE,
+#endif
 				.period = SOFT_PAUSE_PERIOD,
 				.step = SOFT_PAUSE_STEP,
 				.rampingcurve = SOFT_PAUSE_CURVE_LINEAR,

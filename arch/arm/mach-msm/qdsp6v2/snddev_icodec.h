@@ -28,6 +28,10 @@ struct snddev_icodec_data {
 	u32 default_sample_rate;
 	int (*pamp_on) (void);
 	void (*pamp_off) (void);
+#ifdef CONFIG_VP_A2220
+	int (*a2220_vp_on) (void);
+	void (*a2220_vp_off) (void);
+#endif
 	int (*voltage_on) (void);
 	void (*voltage_off) (void);
 	u32 dev_vol_type;

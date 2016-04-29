@@ -464,7 +464,7 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 	int trc;
 	int afe_channel_mode;
 	union afe_port_config afe_config;
-	struct snddev_icodec_drv_state *drv = &snddev_icodec_drv;;
+	struct snddev_icodec_drv_state *drv = &snddev_icodec_drv;
 
 	pm_qos_update_request(&drv->tx_pm_qos_req,
 			      msm_cpuidle_get_deep_idle_latency());
@@ -481,8 +481,18 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 		}
 	}
 
+#ifdef CONFIG_VP_A2220
+	if (icodec->data->a2220_vp_on) {
+		if (icodec->data->a2220_vp_on()) {
+			pr_err("%s: Error turning on a2220 vp\n", __func__);
+			goto error_pamp;
+		}
+	}
+#endif
+
 	msm_snddev_tx_mclk_request();
 #endif
+
 	drv->tx_osrclk = clk_get_sys(NULL, "i2s_mic_osr_clk");
 	if (IS_ERR(drv->tx_osrclk))
 		pr_err("%s master clock Error\n", __func__);
@@ -577,8 +587,10 @@ error_invalid_freq:
 
 	pr_err("%s: encounter error\n", __func__);
 
-#if defined(CONFIG_TIMPANI_CODEC) || defined(CONFIG_MARIMBA_CODEC)
+#ifndef CONFIG_MACH_TENDERLOIN
 error_pamp:
+#endif
+#if defined(CONFIG_TIMPANI_CODEC) || defined(CONFIG_MARIMBA_CODEC)
 	pm_qos_update_request(&drv->tx_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 #endif
 	return -ENODEV;
@@ -708,6 +720,11 @@ static int snddev_icodec_close_tx(struct snddev_icodec_state *icodec)
 	/* Reuse pamp_off for TX platform-specific setup  */
 	if (icodec->data->pamp_off)
 		icodec->data->pamp_off();
+#endif
+
+#ifdef CONFIG_VP_A2220
+	if (icodec->data->a2220_vp_off)
+		icodec->data->a2220_vp_off();
 #endif
 
 	icodec->enabled = 0;
