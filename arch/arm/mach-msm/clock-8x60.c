@@ -2520,6 +2520,9 @@ static struct rcg_clk mdp_vsync_clk = {
 static struct clk_freq_tbl clk_tbl_pixel_mdp[] = {
 	F_PIXEL_MDP(        0, gnd,  1,   0,    0),
 	F_PIXEL_MDP( 25600000, pll8, 3,   1,    5),
+#if defined(CONFIG_USA_MODEL_SGH_T989)
+	F_PIXEL_MDP( 27400000, pll8, 1,	  1,   14),
+#endif
 	F_PIXEL_MDP( 42667000, pll8, 1,   1,    9),
 	F_PIXEL_MDP( 43192000, pll8, 1,  64,  569),
 	F_PIXEL_MDP( 48000000, pll8, 4,   1,    2),
@@ -3548,7 +3551,11 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("mmfpb_a_clk",	mmfpb_a_clk.c,	"clock-8x60"),
 
 	CLK_LOOKUP("core_clk",		gp0_clk.c,		""),
+#if defined(CONFIG_MACH_SAMSUNG) && defined(CONFIG_VIBETONZ_CLK)
+	CLK_LOOKUP("core_clk",		gp1_clk.c,		"vibrator"),
+#else
 	CLK_LOOKUP("core_clk",		gp1_clk.c,		""),
+#endif
 	CLK_LOOKUP("core_clk",		gp2_clk.c,		""),
 	CLK_LOOKUP("core_clk",		gsbi1_uart_clk.c,	""),
 	CLK_LOOKUP("core_clk",		gsbi2_uart_clk.c,	""),
@@ -3565,7 +3572,11 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("core_clk",		gsbi10_uart_clk.c,	""),
 	CLK_LOOKUP("core_clk",		gsbi11_uart_clk.c,	""),
 	CLK_LOOKUP("core_clk",		gsbi12_uart_clk.c, "msm_serial_hsl.0"),
+#if defined(CONFIG_MACH_SAMSUNG) && defined(CONFIG_VP_A2220)
+	CLK_LOOKUP("core_clk",		gsbi1_qup_clk.c,	"qup_i2c.16"),
+#else
 	CLK_LOOKUP("core_clk",		gsbi1_qup_clk.c,	"spi_qsd.0"),
+#endif	
 	CLK_LOOKUP("core_clk",		gsbi2_qup_clk.c,	"spi_qsd.1"),
 	CLK_LOOKUP("core_clk",		gsbi3_qup_clk.c,	"qup_i2c.0"),
 	CLK_LOOKUP("core_clk",		gsbi3_qup_clk.c,	"spi_qsd.2"),
@@ -3580,7 +3591,11 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("core_clk",		gsbi10_qup_clk.c,	"qup_i2c.5"),
 #else
 	CLK_LOOKUP("core_clk",		gsbi10_qup_clk.c,	"qup_i2c.11"),
+#if defined(CONFIG_MACH_SAMSUNG) && defined(CONFIG_SENSORS_NFC_PN544)	
+	CLK_LOOKUP("core_clk",		gsbi10_qup_clk.c,	"qup_i2c.14"),
+#else
 	CLK_LOOKUP("core_clk",		gsbi10_qup_clk.c,	"spi_qsd.1"),
+#endif
 #endif
 	CLK_LOOKUP("core_clk",		gsbi11_qup_clk.c,	""),
 	CLK_LOOKUP("gsbi_qup_clk",	gsbi12_qup_clk.c,	"msm_dsps"),
@@ -3610,7 +3625,11 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("src_clk",		usb_fs2_src_clk.c,	""),
 	CLK_LOOKUP("core_clk",		ce2_p_clk.c,		"qce.0"),
 	CLK_LOOKUP("core_clk",		ce2_p_clk.c,		"qcrypto.0"),
+#if defined(CONFIG_MACH_SAMSUNG) && defined(CONFIG_VP_A2220)
+	CLK_LOOKUP("iface_clk",		gsbi1_p_clk.c,		"qup_i2c.16"),
+#else
 	CLK_LOOKUP("iface_clk",		gsbi1_p_clk.c,		"spi_qsd.0"),
+#endif
 	CLK_LOOKUP("iface_clk",		gsbi2_p_clk.c,		"spi_qsd.1"),
 	CLK_LOOKUP("iface_clk",		gsbi3_p_clk.c, "msm_serial_hsl.2"),
 	CLK_LOOKUP("iface_clk",		gsbi3_p_clk.c,		"qup_i2c.0"),
@@ -3631,7 +3650,11 @@ static struct clk_lookup msm_clocks_8x60[] = {
 	CLK_LOOKUP("iface_clk",		gsbi10_p_clk.c,		"msm_uartdm.1"),
 	CLK_LOOKUP("iface_clk",		gsbi11_p_clk.c,		"msm_serial_hsl.3"),
 	CLK_LOOKUP("iface_clk",		gsbi10_p_clk.c,		"qup_i2c.11"),
+#if defined(CONFIG_MACH_SAMSUNG) && defined(CONFIG_SENSORS_NFC_PN544)
+	CLK_LOOKUP("iface_clk",		gsbi10_p_clk.c,		"qup_i2c.14"),
+#else
 	CLK_LOOKUP("iface_clk",		gsbi10_p_clk.c,		"spi_qsd.1"),
+#endif
 #endif
 	CLK_LOOKUP("iface_clk",		gsbi10_p_clk.c,		"msm_uartdm.1"),
 	CLK_LOOKUP("iface_clk",		gsbi11_p_clk.c,		""),
