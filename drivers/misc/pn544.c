@@ -612,7 +612,9 @@ static int pn544_probe(struct i2c_client *client,
 	pni->client   = client;
 	pni->gpio_init = platform_data->gpio_init;
 	pni->ven_enable = !platform_data->ven_isinvert;
+#ifdef CONFIG_MACH_HTC
 	pni->boot_mode = board_mfg_mode();
+#endif
 
 	
 
@@ -679,11 +681,12 @@ static int pn544_probe(struct i2c_client *client,
 		goto err_create_pn_file;
 	}
 
-	
+#ifdef CONFIG_MACH_HTC
 	if (pni->boot_mode != 5) {
 		I("%s: disable NFC by default (bootmode = %d)\n", __func__, pni->boot_mode);
 		pn544_Disable();
 	}
+#endif
 
 	I("%s: Probe success!\n", __func__);
 	return 0;
