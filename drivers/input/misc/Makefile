@@ -85,3 +85,4 @@ obj-$(CONFIG_INPUT_ISL29023)		+= isl29023.o
 obj-$(CONFIG_SENSORS_LSM330_ACC)	+= lsm330_acc.o
 obj-$(CONFIG_SENSORS_LSM330_GYRO)	+= lsm330_gyr.o
 obj-$(CONFIG_OPTICAL_GP2A)		+= gp2a_proximity.o gp2a_light.o gp2a_proc.o
+obj-$(CONFIG_SENSORS_K3DH)		+= k3dh.o orientation.o

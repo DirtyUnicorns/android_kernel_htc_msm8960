@@ -823,4 +823,11 @@ config OPTICAL_GP2A
 	help
 	  This option enables proximity & light sensors using gp2a driver.
 
+config SENSORS_K3DH
+	tristate "K3DH acceleration sensor support"
+	depends on I2C
+        default n
+	help
+	  Driver for STMicroelectronic K3DH accelerometer.
+
 source "drivers/input/misc/mpu3050/Kconfig"
