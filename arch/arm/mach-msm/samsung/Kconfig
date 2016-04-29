@@ -1,0 +1,35 @@
+config MACH_SAMSUNG
+	bool
+
+menu "SAMSUNG Board Selection"
+source "arch/arm/mach-msm/samsung/Kconfig.board"
+endmenu
+
+menu "SAMSUNG Specific Patches"
+
+choice
+	prompt "Target Locale"
+	default TARGET_LOCALE_USA
+
+	config TARGET_LOCALE_KOR
+		bool "Locale KOR "
+		help
+		  Support Korea SKT Board
+
+	config TARGET_LOCALE_USA
+		bool "Locale USA "
+		help
+		  Support USA Board
+
+	config TARGET_LOCALE_JPN
+		bool "Locale JPN "
+		help
+		  Support JPN Board
+
+	config TARGET_LOCALE_EUR
+		bool "Locale EUR "
+		help
+		  Support EUR Board
+endchoice
+
+endmenu

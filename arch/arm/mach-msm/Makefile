@@ -298,6 +298,8 @@ obj-$(CONFIG_MACH_HTC) += htc/
 
 obj-$(CONFIG_MACH_HP) += hp/
 
+obj-$(CONFIG_MACH_SAMSUNG) += samsung/
+
 CFLAGS_msm_vibrator.o += -Idrivers/staging/android
 CFLAGS_board-9615.o += -Idrivers/usb/gadget
 
