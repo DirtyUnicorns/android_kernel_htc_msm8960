@@ -382,7 +382,12 @@ static int msm_mctl_cmd(struct msm_cam_media_controller *p_mctl,
 		break;
 	}
 
+#ifdef CONFIG_MACH_SAMSUNG
+	case MSM_CAM_IOCTL_GET_KERNEL_SYSTEM_TIME:
+	case MSM_CAM_IOCTL_GET_KERNEL_SYSTEM_TIME_COMPAT: {
+#else
 	case MSM_CAM_IOCTL_GET_KERNEL_SYSTEM_TIME: {
+#endif
 		struct timeval timestamp;
 		if (copy_from_user(&timestamp, argp, sizeof(timestamp))) {
 			ERR_COPY_FROM_USER();

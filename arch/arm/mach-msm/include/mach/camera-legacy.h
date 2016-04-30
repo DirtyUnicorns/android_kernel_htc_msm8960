@@ -337,6 +337,9 @@ struct msm_sensor_ctrl {
 	int (*s_init)(const struct msm_camera_sensor_info *);
 	int (*s_release)(void);
 	int (*s_config)(void __user *);
+#if defined(CONFIG_MACH_SAMSUNG)
+	int (*s_ext_config)(void __user *);
+#endif
 	enum msm_camera_type s_camera_type;
 	uint32_t s_mount_angle;
 	enum msm_st_frame_packing s_video_packing;
@@ -679,6 +682,9 @@ int msm_camio_probe_on(struct platform_device *);
 int msm_camio_probe_off(struct platform_device *);
 int msm_camio_sensor_clk_off(struct platform_device *);
 int msm_camio_sensor_clk_on(struct platform_device *);
+#if defined(CONFIG_MACH_SAMSUNG) && defined(CONFIG_MSM_CAMERA_CHOCOLATE)
+void msm_camio_sensor_reset(struct msm_camera_sensor_info *sinfo);
+#endif
 int msm_camio_csi_config(struct msm_camera_csi_params *csi_params);
 int msm_camio_csiphy_config(struct msm_camera_csiphy_params *csiphy_params);
 int msm_camio_csid_config(struct msm_camera_csid_params *csid_params);

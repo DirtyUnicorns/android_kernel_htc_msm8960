@@ -1997,8 +1997,12 @@ static int msm_get_sensor_info(struct msm_sync *sync, void __user *arg)
 	memcpy(&info.name[0],
 		sdata->sensor_name,
 		MAX_SENSOR_NAME);
+#if defined(CONFIG_MACH_SAMSUNG)
+	info.flash_enabled = MSM_CAMERA_FLASH_NONE;
+#else
 	info.flash_enabled = sdata->flash_data->flash_type !=
 		MSM_CAMERA_FLASH_NONE;
+#endif
 
 	/* copy back to user space */
 	if (copy_to_user((void *)arg,
@@ -3021,6 +3025,11 @@ static long msm_ioctl_control(struct file *filep, unsigned int cmd,
 	case MSM_CAM_IOCTL_GET_CAMERA_INFO:
 		rc = msm_get_camera_info(argp);
 		break;
+#if defined(CONFIG_MACH_SAMSUNG)
+	case MSM_CAM_IOCTL_EXT_CONFIG:
+	        rc = pmsm->sync->sctrl.s_ext_config(argp);
+		break;
+#endif
 	default:
 		rc = msm_ioctl_common(pmsm, cmd, argp);
 		break;

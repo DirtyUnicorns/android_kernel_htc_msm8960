@@ -280,14 +280,20 @@ struct msm_camera_sensor_platform_info {
 	int num_vreg;
 	int32_t (*ext_power_ctrl) (int enable);
 	struct msm_camera_gpio_conf *gpio_conf;
-#if !defined(CONFIG_MSM_CAMERA_CHOCOLATE)
-	struct msm_camera_i2c_conf *i2c_conf;
-	struct msm_camera_csi_lane_params *csi_lane_params;
-#if defined(CONFIG_MACH_HTC) && defined(CONFIG_MSM_CAMERA)
+#if defined(CONFIG_MSM_CAMERA) \
+	&& (defined(CONFIG_MACH_HTC) || defined(CONFIG_MACH_SAMSUNG))
 	int sensor_reset_enable;
 	int sensor_pwd;
 	int vcm_pwd;
 	int vcm_enable;
+#endif
+#if defined(CONFIG_MACH_SAMSUNG) && defined(CONFIG_MSM_CAMERA)
+	int(*sensor_power_control) (int);
+#endif
+#if !defined(CONFIG_MSM_CAMERA_CHOCOLATE)
+	struct msm_camera_i2c_conf *i2c_conf;
+	struct msm_camera_csi_lane_params *csi_lane_params;
+#if defined(CONFIG_MACH_HTC) && defined(CONFIG_MSM_CAMERA)
 	int privacy_light;
 	enum msm_camera_pixel_order_default pixel_order_default;
 	enum sensor_flip_mirror_info mirror_flip;
@@ -361,6 +367,9 @@ struct msm_camera_sensor_info {
 	int csi_if;
 #if defined(CONFIG_MACH_HTC) || defined(CONFIG_MSM_CAMERA_CHOCOLATE)
 	struct msm_camera_csi_params csi_params;
+#endif
+#if defined(CONFIG_MACH_SAMSUNG) && defined(CONFIG_MSM_CAMERA)
+	uint32_t irq;
 #endif
 	struct msm_camera_sensor_strobe_flash_data *strobe_flash_data;
 	char *eeprom_data;
