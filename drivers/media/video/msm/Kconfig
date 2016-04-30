@@ -530,3 +530,33 @@ config OV7692
 	depends on MSM_CAMERA_CHOCOLATE
 	---help---
 		Omni Vision VGA YUV Sensor.
+
+config SENSOR_M5MO
+	bool "Sensor M5MO (YUV 8M)"
+	depends on MSM_CAMERA_CHOCOLATE
+	---help---
+	  SONY 8 MP YUV Sensor
+
+config SENSOR_ISX012
+	bool "Sensor ISX012 (YUV 5M)"
+	depends on MSM_CAMERA_CHOCOLATE
+	---help---
+	  SONY 5 MP YUV Sensor
+	
+config SENSOR_S5K6AAFX
+	bool "Sensor S5K6AAFX (YUV 1.3M)"
+	depends on MSM_CAMERA_CHOCOLATE
+	---help---
+	  SONY 1.3 MP YUV Sensor
+	
+config SENSOR_S5K5BAFX
+	bool "Sensor S5K5BAFX (YUV 2M)"
+	depends on MSM_CAMERA_CHOCOLATE
+	---help---
+	  LSI 2 MP YUV Sensor
+
+config SENSOR_SR200PC20M
+	bool "Sensor SR200PC20M (YUV 2M)"
+	depends on MSM_CAMERA_CHOCOLATE
+	---help---
+	  Siliconfile 2 MP YUV Sensor
