@@ -115,6 +115,10 @@ do {								\
 	ret += length;						\
 } while (0)
 
+#define MSM8X60_CHARM_DEVICE machine_is_msm8x60_fusion() \
+				|| machine_is_msm8x60_fusn_ffa() \
+				|| machine_is_celox()
+
 static void drain_timer_func(unsigned long data)
 {
 	queue_work(driver->diag_wq , &(driver->diag_drain_work));
@@ -1977,7 +1981,7 @@ static void diag_disconnect_work_fn(struct work_struct *w)
 #ifdef CONFIG_DIAG_SDIO_PIPE
 void diag_sdio_fn(int type)
 {
-	if (machine_is_msm8x60_fusion() || machine_is_msm8x60_fusn_ffa()) {
+	if (MSM8X60_CHARM_DEVICE) {
 		if (type == INIT)
 			diagfwd_sdio_init();
 		else if (type == EXIT)
