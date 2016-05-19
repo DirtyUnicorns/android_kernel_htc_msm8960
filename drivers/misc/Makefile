@@ -113,5 +113,6 @@ obj-$(CONFIG_USER_PINS)		+= user-pins.o
 obj-$(CONFIG_KERNEL_LOG)	+= klog.o
 obj-$(CONFIG_HSUART)		+= hsuart.o hsuart_tty.o
 obj-$(CONFIG_MDMGPIO)		+= mdmgpio.o
+obj-$(CONFIG_SAMSUNG_JACK) += sec_jack.o
 obj-$(CONFIG_FPR_SPI)		+= fpr/
 obj-$(CONFIG_UID_CPUTIME) += uid_cputime.o
