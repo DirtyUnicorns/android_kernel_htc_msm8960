@@ -480,6 +480,7 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 			goto error_pamp;
 		}
 	}
+#endif
 
 #ifdef CONFIG_VP_A2220
 	if (icodec->data->a2220_vp_on) {
@@ -490,6 +491,7 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 	}
 #endif
 
+#if defined(CONFIG_MARIMBA_CODEC) || defined(CONFIG_TIMPANI_CODEC)
 	msm_snddev_tx_mclk_request();
 #endif
 
