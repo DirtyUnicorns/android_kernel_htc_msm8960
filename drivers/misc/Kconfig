@@ -733,6 +733,12 @@ config SENSORS_NFC_PN544
 	help
 	  PN544 NFC driver.
 
+config SENSORS_YDA165
+	bool "YDA165 Audio Amp Driver"
+	depends on I2C
+	help
+	 YDA165 Audio AMP
+
 config AMP_TFA9887
 	tristate "NXP TFA9887 Speaker AMP Driver"
 	depends on I2C=y
