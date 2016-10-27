@@ -922,6 +922,64 @@ out_err:
 	return err;
 }
 
+static int sdcardfs_fillattr(struct vfsmount *mnt, struct inode *inode, struct kstat *stat)
+{
+	struct sdcardfs_inode_info *info = SDCARDFS_I(inode);
+	struct inode *top = grab_top(info);
+	if (!top)
+		return -EINVAL;
+
+	stat->dev = inode->i_sb->s_dev;
+	stat->ino = inode->i_ino;
+	stat->mode = (inode->i_mode  & S_IFMT) | get_mode(mnt, SDCARDFS_I(top));
+	stat->nlink = inode->i_nlink;
+	stat->uid = SDCARDFS_I(top)->d_uid;
+	stat->gid = get_gid(mnt, SDCARDFS_I(top));
+	stat->rdev = inode->i_rdev;
+	stat->size = i_size_read(inode);
+	stat->atime = inode->i_atime;
+	stat->mtime = inode->i_mtime;
+	stat->ctime = inode->i_ctime;
+	stat->blksize = (1 << inode->i_blkbits);
+	stat->blocks = inode->i_blocks;
+	release_top(info);
+	return 0;
+}
+
+static int sdcardfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
+		 struct kstat *stat)
+{
+	struct dentry *lower_dentry;
+	struct inode *inode;
+	struct inode *lower_inode;
+	struct path lower_path;
+	struct dentry *parent;
+	int err;
+
+	parent = dget_parent(dentry);
+	if(!check_caller_access_to_name(parent->d_inode, dentry->d_name.name)) {
+		printk(KERN_INFO "%s: need to check the caller's gid in packages.list\n"
+						 "  dentry: %s, task:%s\n",
+						 __func__, dentry->d_name.name, current->comm);
+		dput(parent);
+		return -EACCES;
+	}
+	dput(parent);
+
+	inode = dentry->d_inode;
+
+	sdcardfs_get_lower_path(dentry, &lower_path);
+	lower_dentry = lower_path.dentry;
+	lower_inode = sdcardfs_lower_inode(inode);
+
+	sdcardfs_copy_and_fix_attrs(inode, lower_inode);
+	fsstack_copy_inode_size(inode, lower_inode);
+
+	err = sdcardfs_fillattr(mnt, inode, stat);
+	sdcardfs_put_lower_path(dentry, &lower_path);
+	return err;
+}
+
 const struct inode_operations sdcardfs_symlink_iops = {
 	.permission2	= sdcardfs_permission,
 	.setattr2	= sdcardfs_setattr,
