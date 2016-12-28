@@ -6364,18 +6364,16 @@ dhdsdio_dpc(dhd_bus_t *bus)
 #endif
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
-	dhd_os_sdlock(bus->dhd);
-
 	if (bus->dhd->busstate == DHD_BUS_DOWN) {
 		DHD_ERROR(("%s: Bus down, ret\n", __FUNCTION__));
 		bus->intstatus = 0;
-	        dhd_os_sdunlock(bus->dhd);
-
 		return 0;
 	}
 
 	/* Start with leftover status bits */
 	intstatus = bus->intstatus;
+
+	dhd_os_sdlock(bus->dhd);
 
 	if (!SLPAUTO_ENAB(bus) && !KSO_ENAB(bus)) {
 		DHD_ERROR(("%s: Device asleep\n", __FUNCTION__));
