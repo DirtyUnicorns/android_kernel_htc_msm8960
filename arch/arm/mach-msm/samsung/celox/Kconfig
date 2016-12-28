@@ -6,6 +6,7 @@ config MACH_CELOX
 	depends on ARCH_MSM8X60
 	select MACH_SAMSUNG
         select REMOVE_SMI_2X_CLK
+        select MSM_SDIO_AL
 	bool "Samsung Celox"
 	help
 	  Support for the Samsung Celox family.
