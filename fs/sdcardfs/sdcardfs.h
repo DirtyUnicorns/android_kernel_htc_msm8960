@@ -335,45 +335,9 @@ static inline void sdcardfs_put_reset_##pname(const struct dentry *dent) \
 SDCARDFS_DENT_FUNC(lower_path)
 SDCARDFS_DENT_FUNC(orig_path)
 
-<<<<<<< HEAD
 static inline int get_gid(struct sdcardfs_inode_info *info) {
 	struct sdcardfs_sb_info *sb_info = SDCARDFS_SB(info->vfs_inode.i_sb);
 	if (sb_info->options.gid == AID_SDCARD_RW) {
-=======
-/* grab a refererence if we aren't linking to ourself */
-static inline void set_top(struct sdcardfs_inode_info *info, struct inode *top)
-{
-	struct inode *old_top = NULL;
-	BUG_ON(IS_ERR_OR_NULL(top));
-	if (info->top && info->top != &info->vfs_inode) {
-		old_top = info->top;
-	}
-	if (top != &info->vfs_inode)
-		igrab(top);
-	info->top = top;
-	iput(old_top);
-}
-
-static inline struct inode *grab_top(struct sdcardfs_inode_info *info)
-{
-	struct inode *top = info->top;
-	if (top) {
-		return igrab(top);
-	} else {
-		return NULL;
-	}
-}
-
-static inline void release_top(struct sdcardfs_inode_info *info)
-{
-	iput(info->top);
-}
-
-static inline int get_gid(struct vfsmount *mnt, struct sdcardfs_inode_info *info) {
-	struct sdcardfs_vfsmount_options *opts = mnt->data;
-
-	if (opts->gid == AID_SDCARD_RW) {
->>>>>>> 907990f706f... sdcardfs: Use per mount permissions
 		/* As an optimization, certain trusted system components only run
 		 * as owner but operate across all users. Since we're now handing
 		 * out the sdcard_rw GID only to trusted apps, we're okay relaxing
@@ -387,14 +351,8 @@ static inline int get_gid(struct vfsmount *mnt, struct sdcardfs_inode_info *info
 static inline int get_mode(struct vfsmount *mnt, struct sdcardfs_inode_info *info) {
 	int owner_mode;
 	int filtered_mode;
-<<<<<<< HEAD
 	struct sdcardfs_sb_info *sb_info = SDCARDFS_SB(info->vfs_inode.i_sb);
 	int visible_mode = 0775 & ~sb_info->options.mask;
-=======
-	struct sdcardfs_vfsmount_options *opts = mnt->data;
-	int visible_mode = 0775 & ~opts->mask;
-
->>>>>>> 907990f706f... sdcardfs: Use per mount permissions
 
 	if (info->perm == PERM_PRE_ROOT) {
 		/* Top of multi-user view should always be visible to ensure
