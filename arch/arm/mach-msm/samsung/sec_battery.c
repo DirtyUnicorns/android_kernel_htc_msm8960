@@ -3950,13 +3950,11 @@ static int sec_bat_read_proc(char *buf, char **start,
 {
 	struct sec_bat_info *info = data;
 	struct timespec cur_time;
-	ktime_t ktime;
 	int len = 0;
 	/* Guess we need no more than 100 bytes. */
 	int size = 100;
 
-	ktime = alarm_get_elapsed_realtime();
-	cur_time = ktime_to_timespec(ktime);
+	cur_time = ktime_to_timespec(ktime_get_boottime());
 
 	len = snprintf(buf, size,
 		"%lu\t%u\t%u\t%u\t%u\t%d\t%u\t%d\t%d\t%d\t%u\t%u\t"
