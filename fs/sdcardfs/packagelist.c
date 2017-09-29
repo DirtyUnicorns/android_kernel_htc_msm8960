@@ -78,12 +78,11 @@ static inline int qstr_copy(const struct qstr *src, struct qstr *dest)
 static appid_t __get_appid(const struct qstr *key)
 {
 	struct hashtable_entry *hash_cur;
-	struct hlist_node *h_n;
 	unsigned int hash = key->hash;
 	appid_t ret_id;
 
 	rcu_read_lock();
-	hash_for_each_possible_rcu(package_to_appid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(package_to_appid, hash_cur, hlist, hash) {
 		if (qstr_case_eq(key, &hash_cur->key)) {
 			ret_id = atomic_read(&hash_cur->value);
 			rcu_read_unlock();
@@ -105,12 +104,11 @@ appid_t get_appid(const char *key)
 static appid_t __get_ext_gid(const struct qstr *key)
 {
 	struct hashtable_entry *hash_cur;
-	struct hlist_node *h_n;
 	unsigned int hash = key->hash;
 	appid_t ret_id;
 
 	rcu_read_lock();
-	hash_for_each_possible_rcu(ext_to_groupid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(ext_to_groupid, hash_cur, hlist, hash) {
 		if (qstr_case_eq(key, &hash_cur->key)) {
 			ret_id = atomic_read(&hash_cur->value);
 			rcu_read_unlock();
@@ -132,11 +130,10 @@ appid_t get_ext_gid(const char *key)
 static appid_t __is_excluded(const struct qstr *app_name, userid_t user)
 {
 	struct hashtable_entry *hash_cur;
-	struct hlist_node *h_n;
 	unsigned int hash = app_name->hash;
 
 	rcu_read_lock();
-	hash_for_each_possible_rcu(package_to_userid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(package_to_userid, hash_cur, hlist, hash) {
 		if (atomic_read(&hash_cur->value) == user &&
 				qstr_case_eq(app_name, &hash_cur->key)) {
 			rcu_read_unlock();
@@ -207,10 +204,9 @@ static int insert_packagelist_appid_entry_locked(const struct qstr *key, appid_t
 {
 	struct hashtable_entry *hash_cur;
 	struct hashtable_entry *new_entry;
-	struct hlist_node *h_n;
 	unsigned int hash = key->hash;
 
-	hash_for_each_possible_rcu(package_to_appid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(package_to_appid, hash_cur, hlist, hash) {
 		if (qstr_case_eq(key, &hash_cur->key)) {
 			atomic_set(&hash_cur->value, value);
 			return 0;
@@ -227,11 +223,10 @@ static int insert_ext_gid_entry_locked(const struct qstr *key, appid_t value)
 {
 	struct hashtable_entry *hash_cur;
 	struct hashtable_entry *new_entry;
-	struct hlist_node *h_n;
 	unsigned int hash = key->hash;
 
 	/* An extension can only belong to one gid */
-	hash_for_each_possible_rcu(ext_to_groupid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(ext_to_groupid, hash_cur, hlist, hash) {
 		if (qstr_case_eq(key, &hash_cur->key))
 			return -EINVAL;
 	}
@@ -246,11 +241,10 @@ static int insert_userid_exclude_entry_locked(const struct qstr *key, userid_t v
 {
 	struct hashtable_entry *hash_cur;
 	struct hashtable_entry *new_entry;
-	struct hlist_node *h_n;
 	unsigned int hash = key->hash;
 
 	/* Only insert if not already present */
-	hash_for_each_possible_rcu(package_to_userid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(package_to_userid, hash_cur, hlist, hash) {
 		if (atomic_read(&hash_cur->value) == value &&
 				qstr_case_eq(key, &hash_cur->key))
 			return 0;
@@ -348,18 +342,17 @@ static void free_hashtable_entry(struct hashtable_entry *entry)
 static void remove_packagelist_entry_locked(const struct qstr *key)
 {
 	struct hashtable_entry *hash_cur;
-	struct hlist_node *h_n;
 	unsigned int hash = key->hash;
 	struct hlist_node *h_t;
 	HLIST_HEAD(free_list);
 
-	hash_for_each_possible_rcu(package_to_userid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(package_to_userid, hash_cur, hlist, hash) {
 		if (qstr_case_eq(key, &hash_cur->key)) {
 			hash_del_rcu(&hash_cur->hlist);
 			hlist_add_head(&hash_cur->dlist, &free_list);
 		}
 	}
-	hash_for_each_possible_rcu(package_to_appid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(package_to_appid, hash_cur, hlist, hash) {
 		if (qstr_case_eq(key, &hash_cur->key)) {
 			hash_del_rcu(&hash_cur->hlist);
 			hlist_add_head(&hash_cur->dlist, &free_list);
@@ -367,7 +360,7 @@ static void remove_packagelist_entry_locked(const struct qstr *key)
 		}
 	}
 	synchronize_rcu();
-	hlist_for_each_entry_safe(hash_cur, h_t, h_n, &free_list, dlist)
+	hlist_for_each_entry_safe_new(hash_cur, h_t, &free_list, dlist)
 		free_hashtable_entry(hash_cur);
 }
 
@@ -382,10 +375,9 @@ static void remove_packagelist_entry(const struct qstr *key)
 static void remove_ext_gid_entry_locked(const struct qstr *key, gid_t group)
 {
 	struct hashtable_entry *hash_cur;
-	struct hlist_node *h_n;
 	unsigned int hash = key->hash;
 
-	hash_for_each_possible_rcu(ext_to_groupid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(ext_to_groupid, hash_cur, hlist, hash) {
 		if (qstr_case_eq(key, &hash_cur->key) && atomic_read(&hash_cur->value) == group) {
 			hash_del_rcu(&hash_cur->hlist);
 			synchronize_rcu();
@@ -405,19 +397,18 @@ static void remove_ext_gid_entry(const struct qstr *key, gid_t group)
 static void remove_userid_all_entry_locked(userid_t userid)
 {
 	struct hashtable_entry *hash_cur;
-	struct hlist_node *h_n;
 	struct hlist_node *h_t;
 	HLIST_HEAD(free_list);
 	int i;
 
-	hash_for_each_rcu(package_to_userid, i, h_t, hash_cur, hlist) {
+	hash_for_each_rcu_new(package_to_userid, i, hash_cur, hlist) {
 		if (atomic_read(&hash_cur->value) == userid) {
 			hash_del_rcu(&hash_cur->hlist);
 			hlist_add_head(&hash_cur->dlist, &free_list);
 		}
 	}
 	synchronize_rcu();
-	hlist_for_each_entry_safe(hash_cur, h_t, h_n, &free_list, dlist) {
+	hlist_for_each_entry_safe_new(hash_cur, h_t, &free_list, dlist) {
 		free_hashtable_entry(hash_cur);
 	}
 }
@@ -433,10 +424,9 @@ static void remove_userid_all_entry(userid_t userid)
 static void remove_userid_exclude_entry_locked(const struct qstr *key, userid_t userid)
 {
 	struct hashtable_entry *hash_cur;
-	struct hlist_node *h_n;
 	unsigned int hash = key->hash;
 
-	hash_for_each_possible_rcu(package_to_userid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(package_to_userid, hash_cur, hlist, hash) {
 		if (qstr_case_eq(key, &hash_cur->key) &&
 				atomic_read(&hash_cur->value) == userid) {
 			hash_del_rcu(&hash_cur->hlist);
@@ -458,21 +448,20 @@ static void remove_userid_exclude_entry(const struct qstr *key, userid_t userid)
 static void packagelist_destroy(void)
 {
 	struct hashtable_entry *hash_cur;
-	struct hlist_node *h_n;
 	struct hlist_node *h_t;
 	HLIST_HEAD(free_list);
 	int i;
 	mutex_lock(&sdcardfs_super_list_lock);
-	hash_for_each_rcu(package_to_appid, i, h_t, hash_cur, hlist) {
+	hash_for_each_rcu_new(package_to_appid, i, hash_cur, hlist) {
 		hash_del_rcu(&hash_cur->hlist);
 		hlist_add_head(&hash_cur->dlist, &free_list);
 	}
-	hash_for_each_rcu(package_to_userid, i, h_t, hash_cur, hlist) {
+	hash_for_each_rcu_new(package_to_userid, i, hash_cur, hlist) {
 		hash_del_rcu(&hash_cur->hlist);
 		hlist_add_head(&hash_cur->dlist, &free_list);
 	}
 	synchronize_rcu();
-	hlist_for_each_entry_safe(hash_cur, h_t, h_n, &free_list, dlist)
+	hlist_for_each_entry_safe_new(hash_cur, h_t, &free_list, dlist)
 		free_hashtable_entry(hash_cur);
 	mutex_unlock(&sdcardfs_super_list_lock);
 	pr_info("sdcardfs: destroyed packagelist pkgld\n");
@@ -521,12 +510,11 @@ static ssize_t package_details_excluded_userids_show(struct package_details *pac
 				      char *page)
 {
 	struct hashtable_entry *hash_cur;
-	struct hlist_node *h_n;
 	unsigned int hash = package_details->name.hash;
 	int count = 0;
 
 	rcu_read_lock();
-	hash_for_each_possible_rcu(package_to_userid, hash_cur, h_n, hlist, hash) {
+	hash_for_each_possible_rcu_new(package_to_userid, hash_cur, hlist, hash) {
 		if (qstr_case_eq(&package_details->name, &hash_cur->key))
 			count += scnprintf(page + count, PAGE_SIZE - count,
 					"%d ", atomic_read(&hash_cur->value));
@@ -770,18 +758,17 @@ static ssize_t packages_list_show(struct packages *packages,
 	struct hashtable_entry *hash_cur_app;
 	struct hashtable_entry *hash_cur_user;
 	struct hlist_node *h_t;
-	struct hlist_node *h_n;
 	int i;
 	int count = 0, written = 0;
 	const char errormsg[] = "<truncated>\n";
 	unsigned int hash;
 
 	rcu_read_lock();
-	hash_for_each_rcu(package_to_appid, i, h_t, hash_cur_app, hlist) {
+	hash_for_each_rcu_new(package_to_appid, i, hash_cur_app, hlist) {
 		written = scnprintf(page + count, PAGE_SIZE - sizeof(errormsg) - count, "%s %d\n",
 					hash_cur_app->key.name, atomic_read(&hash_cur_app->value));
 		hash = hash_cur_app->key.hash;
-		hash_for_each_possible_rcu(package_to_userid, hash_cur_user, h_t, hlist, hash) {
+		hash_for_each_possible_rcu_new(package_to_userid, hash_cur_user, hlist, hash) {
 			if (qstr_case_eq(&hash_cur_app->key, &hash_cur_user->key)) {
 				written += scnprintf(page + count + written - 1,
 					PAGE_SIZE - sizeof(errormsg) - count - written + 1,
