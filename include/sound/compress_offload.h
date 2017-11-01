@@ -199,5 +199,8 @@ struct snd_compr_audio_info {
 #define SND_COMPR_TRIGGER_NEXT_TRACK 8
 #define SND_COMPR_TRIGGER_PARTIAL_DRAIN 9
 
+#define SND_COMPR_TRIGGER_NEXT_TRACK 8
+#define SND_COMPR_TRIGGER_PARTIAL_DRAIN 9
+
 #define SNDRV_COMPRESS_METADATA_MODE          _IOW('C', 0x99, bool)
 #endif

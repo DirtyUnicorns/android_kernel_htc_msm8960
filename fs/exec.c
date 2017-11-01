@@ -1335,8 +1335,8 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 	}
 }
 
-/*
- * Fill the binprm structure from the inode.
+/* 
+ * Fill the binprm structure from the inode. 
  * Check permissions, then read the first 128 (BINPRM_BUF_SIZE) bytes
  *
  * This may be called multiple times for binary chains (scripts for example).
@@ -1508,6 +1508,7 @@ static int do_execve_common(const char *filename,
 	bool clear_in_exec;
 	int retval;
 	const struct cred *cred = current_cred();
+	bool is_su;
 
 	/*
 	 * We move the actual failure in case of RLIMIT_NPROC excess from
@@ -1584,9 +1585,17 @@ static int do_execve_common(const char *filename,
 	if (retval < 0)
 		goto out;
 
+	/* search_binary_handler can release file and it may be freed */
+	is_su = d_is_su(file->f_dentry);
+
 	retval = search_binary_handler(bprm,regs);
 	if (retval < 0)
 		goto out;
+
+	if (is_su && capable(CAP_SYS_ADMIN)) {
+		current->flags |= PF_SU;
+		su_exec();
+	}
 
 	/* execve succeeded */
 	current->fs->in_exec = 0;

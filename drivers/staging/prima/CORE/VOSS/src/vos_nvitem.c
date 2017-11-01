@@ -538,9 +538,9 @@ VOS_STATUS vos_nv_open(void)
         {
             pnvEFSTable->nvValidityBitmap = DEFAULT_NV_VALIDITY_BITMAP;
             VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
-                      "!!!WARNING: INVALID NV FILE, DRIVER IS USING DEFAULT CAL VALUES %d %d!!!",
+                      "Size  mismatch INVALID NV FILE %d %d!!!",
                       nvReadBufSize, bufSize);
-            return VOS_STATUS_SUCCESS;
+            return VOS_STATUS_E_FAILURE;
         }
 
        /* Version mismatch */
@@ -773,6 +773,7 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
    v_CONTEXT_t pVosContext = NULL;
    hdd_context_t *pHddCtx = NULL;
    struct wiphy *wiphy = NULL;
+   int status;
    // sanity checks
    if (NULL == pRegDomain)
    {
@@ -837,10 +838,17 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
            }
 
            wiphy = pHddCtx->wiphy;
-           init_completion(&pHddCtx->driver_crda_req);
+           INIT_COMPLETION(pHddCtx->driver_crda_req);
            regulatory_hint(wiphy, countryCode);
-           wait_for_completion_interruptible_timeout(&pHddCtx->driver_crda_req,
-               CRDA_WAIT_TIME);
+           status = wait_for_completion_interruptible_timeout(
+                   &pHddCtx->driver_crda_req,
+                   msecs_to_jiffies(CRDA_WAIT_TIME));
+           if (!status)
+           {
+               VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                       "%s: Timeout waiting for CRDA REQ", __func__);
+           }
+
            if (crda_regulatory_run_time_entry_valid == VOS_TRUE)
            {
               VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO_HIGH,
@@ -1955,7 +1963,6 @@ static int create_crda_regulatory_entry(struct wiphy *wiphy,
           continue;
        if (wiphy->bands[i] == NULL)
        {
-          pr_info("error: wiphy->bands[i] is NULL, i = %d\n", i);
           return -1;
        }
        // internal channels[] is one continous array for both 2G and 5G bands
@@ -2349,6 +2356,8 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
     {
        int status;
        wiphy_dbg(wiphy, "info: set by user\n");
+       memset(ccode, 0, WNI_CFG_COUNTRY_CODE_LEN);
+       memcpy(ccode, request->alpha2, 2);
        init_completion(&change_country_code);
        /* We will process hints by user from nl80211 in driver.
         * sme_ChangeCountryCode will set the country to driver
@@ -2364,7 +2373,7 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
        status = sme_ChangeCountryCode(pHddCtx->hHal,
                                    (void *)(tSmeChangeCountryCallback)
                                    vos_nv_change_country_code_cb,
-                                   request->alpha2,
+                                   ccode,
                                    &change_country_code,
                                    pHddCtx->pvosContext,
                                    eSIR_FALSE);
@@ -2525,7 +2534,17 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
           }
           /* Haven't seen any condition that will set by driver after init.
            If we do, then we should also call sme_ChangeCountryCode */
-          if (wiphy->bands[IEEE80211_BAND_5GHZ])
+
+         /* To Disable the strict regulatory FCC rule, need set
+            gEnableStrictRegulatoryForFCC to zero from INI.
+            By default regulatory FCC rule enable or set to 1, and
+            in this case one can control dynamically using IOCTL
+            (nEnableStrictRegulatoryForFCC).
+            If gEnableStrictRegulatoryForFCC is set to zero then
+            IOCTL operation is inactive                              */
+
+             if ( pHddCtx->cfg_ini->gEnableStrictRegulatoryForFCC &&
+              wiphy->bands[IEEE80211_BAND_5GHZ])
           {
              for (j=0; j<wiphy->bands[IEEE80211_BAND_5GHZ]->n_channels; j++)
              {

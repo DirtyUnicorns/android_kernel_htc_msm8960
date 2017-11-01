@@ -2381,7 +2381,8 @@ eHalStatus csrNeighborRoamPerformBgScan(tpAniSirGlobal pMac, tANI_U32 sessionId)
     tCsrBGScanRequest   bgScanParams;
     tANI_U8             channel = 0;
 
-    if (pNeighborRoamInfo->roamChannelInfo.currentChannelListInfo.ChannelList)
+    if ( pNeighborRoamInfo->roamChannelInfo.currentChannelListInfo.ChannelList &&
+         pNeighborRoamInfo->roamChannelInfo.currentChannelListInfo.numOfChannels )
     {
         NEIGHBOR_ROAM_DEBUG(pMac, LOG1, FL("Channel List Address = %08x"), &pNeighborRoamInfo->roamChannelInfo.currentChannelListInfo.ChannelList[0]);
     }
@@ -2475,25 +2476,16 @@ eHalStatus csrNeighborRoamPerformContiguousBgScan(tpAniSirGlobal pMac, tANI_U32 
     /* Contiguously scan all channels from valid list */
     NEIGHBOR_ROAM_DEBUG(pMac, LOG2, "%s: get valid channel list", __func__);
 
-    if (NULL != pMac->roam.neighborRoamInfo.cfgParams.countryChannelInfo.countryValidChannelList.ChannelList)
-    {
-        /* this list is filled only if the country code is set to KR */
-        numOfChannels = pMac->roam.neighborRoamInfo.cfgParams.countryChannelInfo.countryValidChannelList.numOfChannels;
-        pInChannelList = pMac->roam.neighborRoamInfo.cfgParams.countryChannelInfo.countryValidChannelList.ChannelList;
-    }
-    else
-    {
-        numOfChannels = sizeof(pMac->roam.validChannelList);
+    numOfChannels = sizeof(pMac->roam.validChannelList);
 
-        if(!HAL_STATUS_SUCCESS(csrGetCfgValidChannels(pMac,
-                              (tANI_U8 *)pMac->roam.validChannelList,
-                              (tANI_U32 *) &numOfChannels)))
-        {
-            smsLog(pMac, LOGE, FL("Could not get valid channel list"));
-            return eHAL_STATUS_FAILURE;
-        }
-        pInChannelList = pMac->roam.validChannelList;
+    if(!HAL_STATUS_SUCCESS(csrGetCfgValidChannels(pMac,
+                          (tANI_U8 *)pMac->roam.validChannelList,
+                          (tANI_U32 *) &numOfChannels)))
+    {
+        smsLog(pMac, LOGE, FL("Could not get valid channel list"));
+        return eHAL_STATUS_FAILURE;
     }
+    pInChannelList = pMac->roam.validChannelList;
 
     if (CSR_IS_ROAM_INTRA_BAND_ENABLED(pMac))
     {
@@ -3614,7 +3606,8 @@ VOS_STATUS  csrNeighborRoamNeighborLookupUpEvent(tpAniSirGlobal pMac)
     csrNeighborRoamDeregAllRssiIndication(pMac);
 
     /* Recheck whether the below check is needed. */
-    if (pNeighborRoamInfo->neighborRoamState != eCSR_NEIGHBOR_ROAM_STATE_CONNECTED)
+    if ((pNeighborRoamInfo->neighborRoamState != eCSR_NEIGHBOR_ROAM_STATE_CONNECTED)
+        && (pNeighborRoamInfo->neighborRoamState != eCSR_NEIGHBOR_ROAM_STATE_REASSOCIATING))
         CSR_NEIGHBOR_ROAM_STATE_TRANSITION(eCSR_NEIGHBOR_ROAM_STATE_CONNECTED)
 #ifdef FEATURE_WLAN_LFR
     if (!csrRoamIsFastRoamEnabled(pMac,pMac->roam.neighborRoamInfo.csrSessionId))
@@ -4250,17 +4243,6 @@ eHalStatus csrNeighborRoamInit(tpAniSirGlobal pMac)
     pNeighborRoamInfo->cfgParams.neighborScanPeriod = pMac->roam.configParam.neighborRoamConfig.nNeighborScanTimerPeriod;
     pNeighborRoamInfo->cfgParams.neighborResultsRefreshPeriod = pMac->roam.configParam.neighborRoamConfig.nNeighborResultsRefreshPeriod;
     pNeighborRoamInfo->cfgParams.emptyScanRefreshPeriod = pMac->roam.configParam.neighborRoamConfig.nEmptyScanRefreshPeriod;
-
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-    pNeighborRoamInfo->cfgParams.countryChannelInfo.revision = SME_KR_25;
-    pNeighborRoamInfo->cfgParams.countryChannelInfo.countryValidChannelList.ChannelList = NULL;
-    pNeighborRoamInfo->cfgParams.countryChannelInfo.countryValidChannelList.numOfChannels = 0;
-
-    if (0 == strncmp(pMac->scan.countryCodeCurrent, "KR", 2))
-    {
-       csrInitCountryValidChannelList(pMac, SME_KR_25);
-    }
-#endif
 
     pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels   =
                         pMac->roam.configParam.neighborRoamConfig.neighborScanChanList.numChannels;

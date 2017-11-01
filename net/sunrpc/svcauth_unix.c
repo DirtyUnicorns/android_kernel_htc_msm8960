@@ -499,7 +499,7 @@ static int unix_gid_parse(struct cache_detail *cd,
 			char *mesg, int mlen)
 {
 	/* uid expiry Ngid gid0 gid1 ... gidN-1 */
-	int uid;
+	int uid = 0;
 	int gids = 0;
 	int rv;
 	int i;

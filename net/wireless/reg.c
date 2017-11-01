@@ -301,6 +301,11 @@ static bool is_user_regdom_saved(void)
 	return true;
 }
 
+static bool is_cfg80211_regdom_intersected(void)
+{
+	return is_intersected_alpha2(cfg80211_regdomain->alpha2);
+}
+
 static int reg_copy_regd(const struct ieee80211_regdomain **dst_regd,
 			 const struct ieee80211_regdomain *src_regd)
 {
@@ -1197,7 +1202,10 @@ void regulatory_update(struct wiphy *wiphy,
 		       enum nl80211_reg_initiator setby)
 {
 	mutex_lock(&reg_mutex);
-	wiphy_update_regulatory(wiphy, setby);
+	if (last_request)
+		wiphy_update_regulatory(wiphy, last_request->initiator);
+	else
+		wiphy_update_regulatory(wiphy, setby);
 	mutex_unlock(&reg_mutex);
 }
 
@@ -1391,11 +1399,15 @@ static int ignore_request(struct wiphy *wiphy,
 		 * Process user requests only after previous user/driver/core
 		 * requests have been processed
 		 */
-		if (last_request->initiator == NL80211_REGDOM_SET_BY_CORE ||
-		    last_request->initiator == NL80211_REGDOM_SET_BY_DRIVER ||
-		    last_request->initiator == NL80211_REGDOM_SET_BY_USER) {
-			if (regdom_changes(last_request->alpha2))
+		if ((last_request->initiator == NL80211_REGDOM_SET_BY_CORE ||
+		     last_request->initiator == NL80211_REGDOM_SET_BY_DRIVER ||
+		     last_request->initiator == NL80211_REGDOM_SET_BY_USER)) {
+			if (last_request->intersect) {
+				if (!is_cfg80211_regdom_intersected())
+					return -EAGAIN;
+			} else if (regdom_changes(last_request->alpha2)) {
 				return -EAGAIN;
+			}
 		}
 
 		if (!regdom_changes(pending_request->alpha2))
@@ -2226,10 +2238,15 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		 * However if a driver requested this specific regulatory
 		 * domain we keep it for its private use
 		 */
-		if (last_request->initiator == NL80211_REGDOM_SET_BY_DRIVER)
+		if (last_request->initiator == NL80211_REGDOM_SET_BY_DRIVER) {
+			const struct ieee80211_regdomain *tmp;
+
+			tmp = request_wiphy->regd;
 			request_wiphy->regd = rd;
-		else
+			kfree(tmp);
+		} else {
 			kfree(rd);
+		}
 
 		rd = NULL;
 

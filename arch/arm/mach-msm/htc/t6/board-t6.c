@@ -144,7 +144,7 @@ struct pm8xxx_gpio_init {
 #define MSM_ION_MFC_META_SIZE  0x40000 /* 256 Kbytes */
 #define MSM_CONTIG_MEM_SIZE  0x65000
 #ifdef CONFIG_MSM_IOMMU
-#define MSM_ION_MM_SIZE		0x4800000
+#define MSM_ION_MM_SIZE		0x6000000
 #define MSM_ION_SF_SIZE		0
 #define MSM_ION_QSECOM_SIZE	0x780000 /* (7.5MB) */
 #ifdef CONFIG_CMA
@@ -846,7 +846,7 @@ static int usb_diag_update_pid_and_serial_num(uint32_t pid, const char *snum)
 		return -ENXIO;
 	}
 
-	pr_debug("%s: dload:%p pid:%x serial_num:%s\n",
+	pr_debug("%s: dload:%pK pid:%x serial_num:%s\n",
 				__func__, dload, pid, snum);
 
 	dload->magic_struct.pid = PID_MAGIC_ID;
@@ -3079,7 +3079,169 @@ static struct spi_board_info rawchip_spi_board_info[] __initdata = {
 #endif
 
 #ifdef CONFIG_FPR_SPI
+#define FPC_IRQ_GPIO 55
+
 extern unsigned int engineerid;
+
+static struct gpiomux_setting fpc_settings[] = {
+	{
+		.func = GPIOMUX_FUNC_GPIO,
+		.drv = GPIOMUX_DRV_6MA,
+		.pull = GPIOMUX_PULL_NONE,
+		.dir = GPIOMUX_OUT_LOW,
+	},
+	{
+		.func = GPIOMUX_FUNC_2,
+		.drv = GPIOMUX_DRV_6MA,
+		.pull = GPIOMUX_PULL_NONE,
+	},
+	{
+		.func = GPIOMUX_FUNC_GPIO,
+		.drv = GPIOMUX_DRV_6MA,
+		.pull = GPIOMUX_PULL_DOWN,
+		.dir = GPIOMUX_IN,
+	},
+	{
+		.func = GPIOMUX_FUNC_GPIO,
+		.drv = GPIOMUX_DRV_2MA,
+		.pull = GPIOMUX_PULL_NONE,
+		.dir = GPIOMUX_IN,
+	},
+	{
+		.func = GPIOMUX_FUNC_GPIO,
+		.drv = GPIOMUX_DRV_2MA,
+		.pull = GPIOMUX_PULL_DOWN,
+		.dir = GPIOMUX_IN,
+	},
+	{
+		.func = GPIOMUX_FUNC_3,
+		.drv = GPIOMUX_DRV_6MA,
+		.pull = GPIOMUX_PULL_NONE,
+	},
+	{
+		.func = GPIOMUX_FUNC_GPIO,
+		.drv = GPIOMUX_DRV_2MA,
+		.pull = GPIOMUX_PULL_UP,
+		.dir = GPIOMUX_IN,
+	},
+	{
+		.func = GPIOMUX_FUNC_1,
+		.drv = GPIOMUX_DRV_8MA,
+		.pull = GPIOMUX_PULL_NONE,
+	},
+};
+
+
+static struct msm_gpiomux_config t6_fpc_common_configs[] = {
+	{
+		.gpio = FPC_IRQ_GPIO,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &fpc_settings[6],
+			[GPIOMUX_SUSPENDED] = &fpc_settings[6],
+		},
+	},
+	{
+		.gpio = MSM_FP_SPI_CLK,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &fpc_settings[7],
+			[GPIOMUX_SUSPENDED] = &fpc_settings[0],
+		},
+	},
+	{
+		.gpio = MSM_FP_SPI_CS0,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &fpc_settings[7],
+			[GPIOMUX_SUSPENDED] = &fpc_settings[0],
+		},
+	},
+	{
+		.gpio = MSM_FP_SPI_MISO,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &fpc_settings[7],
+			[GPIOMUX_SUSPENDED] = &fpc_settings[2],
+		},
+	},
+	{
+		.gpio = MSM_FP_SPI_MOSI,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &fpc_settings[7],
+			[GPIOMUX_SUSPENDED] = &fpc_settings[0],
+		},
+	},
+};
+
+static uint16_t t6_fp_gpio[] = {
+	FPC_IRQ_GPIO,
+	MSM_FP_SPI_MOSI,
+	MSM_FP_SPI_MISO,
+	MSM_FP_SPI_CS0,
+	MSM_FP_SPI_CLK,
+};
+
+static struct gpiomux_setting recovery_config_cs = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_OUT_LOW,
+};
+
+struct gpiomux_setting old_gpio_setting_cs = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting recovery_config_clk = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_OUT_LOW,
+};
+struct gpiomux_setting old_gpio_setting_clk = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting recovery_config_mi = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_OUT_LOW,
+};
+struct gpiomux_setting old_gpio_setting_mi = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting recovery_config_mo = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_OUT_LOW,
+};
+
+struct gpiomux_setting old_gpio_setting_mo = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting recovery_config_isr = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_IN,
+};
+
+struct gpiomux_setting old_gpio_setting_isr = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_IN,
+};
+
 static int fingerprint_set_pin(int pin_num, int value)
 {
 	int rc = 0;
@@ -3212,6 +3374,7 @@ static int __init t6_validity_fingerprint_spi_init(void)
 	if (err)
 		pr_err("[fp] failed to register spi board info for vadlidity fpr\n");
 
+	msm_gpiomux_install(t6_fpc_common_configs, ARRAY_SIZE(t6_fpc_common_configs));
 	for (i = 0; i < ARRAY_SIZE(t6_fp_gpio); i++) {
 		rc = gpio_request(t6_fp_gpio[i], "vfsspi");
 		if (rc < 0) {
@@ -3355,10 +3518,10 @@ static int g_sensor_power_LPM(int on)
 	mutex_lock(&sensor_lock);
 
 	printk(KERN_DEBUG "[GSNR][BMA250_BOSCH] %s, on = %d, "
-			  "g_sensor_vreg_8921_l17 = 0x%p\n",
+			  "g_sensor_vreg_8921_l17 = 0x%pK\n",
 			  __func__, on, g_sensor_vreg_8921_l17);
 	printk(KERN_DEBUG "[GSNR][BMA250_BOSCH] %s, on = %d, "
-			  "g_sensor_vreg_8921_l21 = 0x%p\n",
+			  "g_sensor_vreg_8921_l21 = 0x%pK\n",
 			  __func__, on, g_sensor_vreg_8921_l21);
 
 	if (!g_sensor_vreg_8921_l17)
@@ -3471,10 +3634,10 @@ static int compass_power_LPM(int on)
 	mutex_lock(&sensor_lock);
 
 	printk(KERN_DEBUG "[COMP][AKM8963] %s, on = %d, "
-			  "compass_vreg_8921_l17 = 0x%p\n",
+			  "compass_vreg_8921_l17 = 0x%pK\n",
 			  __func__, on, compass_vreg_8921_l17);
 	printk(KERN_DEBUG "[COMP][AKM8963] %s, on = %d, "
-			  "compass_vreg_8921_l21 = 0x%p\n",
+			  "compass_vreg_8921_l21 = 0x%pK\n",
 			  __func__, on, compass_vreg_8921_l21);
 
 	if (!compass_vreg_8921_l17)
@@ -3583,10 +3746,10 @@ static int gyro_power_LPM(int on)
 	mutex_lock(&sensor_lock);
 
 	printk(KERN_DEBUG "[GYRO][R3GD20] %s, on = %d, "
-			  "gyro_vreg_8921_l17 = 0x%p\n",
+			  "gyro_vreg_8921_l17 = 0x%pK\n",
 			  __func__, on, gyro_vreg_8921_l17);
 	printk(KERN_DEBUG "[GYRO][R3GD20] %s, on = %d, "
-			  "gyro_vreg_8921_l21 = 0x%p\n",
+			  "gyro_vreg_8921_l21 = 0x%pK\n",
 			  __func__, on, gyro_vreg_8921_l21);
 
 	if (!gyro_vreg_8921_l17)
@@ -3898,10 +4061,10 @@ static int t6_mpu3050_sensor_power_LPM(int on)
 	mutex_lock(&sensor_lock);
 
 	printk(KERN_DEBUG "[MPU][MPL3.3.7] %s, on = %d, "
-			  "motion_sensor_vreg_8921_l17 = 0x%p\n",
+			  "motion_sensor_vreg_8921_l17 = 0x%pK\n",
 			  __func__, on, motion_sensor_vreg_8921_l17);
 	printk(KERN_DEBUG "[MPU][MPL3.3.7] %s, on = %d, "
-			  "motion_sensor_vreg_8921_l21 = 0x%p\n",
+			  "motion_sensor_vreg_8921_l21 = 0x%pK\n",
 			  __func__, on, motion_sensor_vreg_8921_l21);
 
 	if (!motion_sensor_vreg_8921_l17)

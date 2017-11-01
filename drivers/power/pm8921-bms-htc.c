@@ -1115,17 +1115,12 @@ static int read_soc_params_raw(struct pm8921_bms_chip *chip,
 		else
 			pr_info("%s: Skip adjust_pon_ocv_raw due to ocv_updated_flag=0x%x\n",
 					__func__, ocv_updated_flag);
-		if(read_backup_cc_uv() != 0) {
-			chip->cc_backup_uv = read_backup_cc_uv();
-			chip->ocv_reading_at_100 = read_backup_ocv_at_100();
-			chip->ocv_backup_uv = read_backup_ocv_uv();
-			if (chip->ocv_reading_at_100 > 0)
-				last_ocv_uv = chip->max_voltage_uv;
-			else
-				raw->last_good_ocv_uv = last_ocv_uv = chip->ocv_backup_uv;
-		} else {
+
+		if (chip->ocv_backup_uv)
+			raw->last_good_ocv_uv = last_ocv_uv = chip->ocv_backup_uv;
+		else
 			last_ocv_uv = raw->last_good_ocv_uv;
-		}
+
 		pr_info("%s: last_good_ocv_raw=0x%x, last_good_ocv_uv/ori=%duV/%duV"
 				"ocv_reading_at_100=%x, cc_backup_uv=%d, ocv_backup_uv=%d, last_ocv_uv=%d\n",
 				__func__, raw->last_good_ocv_raw, raw->last_good_ocv_uv,
@@ -1152,9 +1147,6 @@ static int read_soc_params_raw(struct pm8921_bms_chip *chip,
 		chip->ocv_reading_at_100 = 0;
 		chip->cc_backup_uv = 0;
 		chip->ocv_backup_uv = 0;
-		write_backup_cc_uv(chip->cc_backup_uv);
-		write_backup_ocv_at_100(chip->ocv_reading_at_100);
-		write_backup_ocv_uv(chip->ocv_backup_uv);
 		htc_batt_bms_timer.no_ocv_update_period_ms = 0;
 
 		pm_bms_masked_write(chip, OCV_UPDATE_STORAGE,
@@ -1925,9 +1917,6 @@ static int pm8921_bms_estimate_ocv(void)
 		the_chip->cc_backup_uv = raw.cc;
 		the_chip->ocv_backup_uv = last_ocv_uv;
 		the_chip->ocv_reading_at_100 = 0;
-		write_backup_cc_uv(the_chip->cc_backup_uv);
-		write_backup_ocv_at_100(the_chip->ocv_reading_at_100);
-		write_backup_ocv_uv(the_chip->ocv_backup_uv);
 		htc_batt_bms_timer.no_ocv_update_period_ms = 0; 
 	}
 	return estimated_ocv_uv;
@@ -2186,9 +2175,6 @@ void pm8921_bms_charging_end(int is_battery_full)
 		the_chip->ocv_reading_at_100 = raw.last_good_ocv_raw;
 		the_chip->cc_backup_uv = raw.cc;
 		the_chip->ocv_backup_uv = 0;
-		write_backup_cc_uv(the_chip->cc_backup_uv);
-		write_backup_ocv_at_100(the_chip->ocv_reading_at_100);
-		write_backup_ocv_uv(the_chip->ocv_backup_uv);
 		spin_unlock_irqrestore(&the_chip->bms_100_lock, flags);
 		pr_info("EOC ocv_reading = 0x%x cc = %d\n",
 				the_chip->ocv_reading_at_100,
@@ -3424,9 +3410,6 @@ static int __devinit pm8921_bms_probe(struct platform_device *pdev)
 		chip->cc_backup_uv = raw.cc - batt_stored_cc_uv;
 		chip->ocv_backup_uv = last_ocv_uv = batt_stored_ocv_uv;
 		chip->ocv_reading_at_100 = 0;
-		write_backup_cc_uv(chip->cc_backup_uv);
-		write_backup_ocv_at_100(chip->ocv_reading_at_100);
-		write_backup_ocv_uv(chip->ocv_backup_uv);
 
 		new_boot_soc = pm8921_bms_get_percent_charge();
 		

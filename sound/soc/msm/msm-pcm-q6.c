@@ -44,10 +44,10 @@ struct snd_msm {
 #define PLAYBACK_MAX_NUM_PERIODS 8
 #define PLAYBACK_MIN_PERIOD_SIZE 128
 #define PLAYBACK_MAX_PERIOD_SIZE 12288
-#define CAPTURE_MIN_NUM_PERIODS  2
-#define CAPTURE_MAX_NUM_PERIODS  16
-#define CAPTURE_MAX_PERIOD_SIZE  4096
-#define CAPTURE_MIN_PERIOD_SIZE  64
+#define CAPTURE_MIN_NUM_PERIODS 2
+#define CAPTURE_MAX_NUM_PERIODS 16
+#define CAPTURE_MAX_PERIOD_SIZE 4096
+#define CAPTURE_MIN_PERIOD_SIZE 320
 
 static struct snd_pcm_hardware msm_pcm_hardware_capture = {
 	.info =                 (SNDRV_PCM_INFO_MMAP |
@@ -406,8 +406,6 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		pr_err("snd_pcm_hw_constraint_integer failed\n");
 
-<<<<<<< HEAD
-=======
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ret = snd_pcm_hw_constraint_minmax(runtime,
 			SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
@@ -419,7 +417,6 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 		}
 	}
 
->>>>>>> 043b10f... ASoC: msm: Add support for flexible period size and count
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		ret = snd_pcm_hw_constraint_minmax(runtime,
 			SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
@@ -788,7 +785,7 @@ static int msm_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (buf == NULL || buf[0].data == NULL)
 		return -ENOMEM;
 
-	pr_debug("%s:buf = %p\n", __func__, buf);
+	pr_debug("%s:buf = %pK\n", __func__, buf);
 	dma_buf->dev.type = SNDRV_DMA_TYPE_DEV;
 	dma_buf->dev.dev = substream->pcm->card->dev;
 	dma_buf->private_data = NULL;

@@ -179,6 +179,7 @@ extern struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
 
 extern struct file *proc_ns_fget(int fd);
 extern void *PDE_DATA(const struct inode *);
+
 extern bool proc_ns_inode(struct inode *inode);
 
 extern int proc_alloc_inum(unsigned int *pino);

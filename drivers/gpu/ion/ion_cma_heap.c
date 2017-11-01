@@ -372,7 +372,6 @@ static int ion_cma_print_debug(struct ion_heap *heap, struct seq_file *s,
 					rb_entry(n, struct mem_map_data, node);
 			const char *client_name = "(null)";
 
-
 			if (data->client_name)
 				client_name = data->client_name;
 

@@ -63,6 +63,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/wireless.h>
+#include <linux/ratelimit.h>
 #include <wlan_hdd_includes.h>
 #include <wlan_btc_svc.h>
 #include <wlan_nlink_common.h>
@@ -113,6 +114,10 @@
 #include "qc_sap_ioctl.h"
 #include "sme_Api.h"
 #include "vos_trace.h"
+
+#ifdef DEBUG_ROAM_DELAY
+#include "vos_utils.h"
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 extern void hdd_suspend_wlan(struct early_suspend *wlan_suspend);
@@ -213,7 +218,11 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WE_ENABLE_DXE_STALL_DETECT 6
 #define WE_DISPLAY_DXE_SNAP_SHOT   7
 #define WE_DISPLAY_DATAPATH_SNAP_SHOT    9
-#define WE_SET_REASSOC_TRIGGER     8
+
+#ifdef DEBUG_ROAM_DELAY
+#define WE_DUMP_ROAM_TIMER_LOG     10
+#define WE_RESET_ROAM_TIMER_LOG    11
+#endif
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_VAR_INT_GET_NONE   (SIOCIWFIRSTPRIV + 7)
@@ -245,17 +254,12 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WLAN_PRIV_DEL_TSPEC (SIOCIWFIRSTPRIV + 11)
 #define WLAN_PRIV_GET_TSPEC (SIOCIWFIRSTPRIV + 13)
 
-#ifdef FEATURE_WLAN_WAPI
-/* Private ioctls EVEN NO: SET, ODD NO:GET */
-#define WLAN_PRIV_SET_WAPI_MODE         (SIOCIWFIRSTPRIV + 8)
-#define WLAN_PRIV_GET_WAPI_MODE         (SIOCIWFIRSTPRIV + 16)
-#define WLAN_PRIV_SET_WAPI_ASSOC_INFO   (SIOCIWFIRSTPRIV + 10)
-#define WLAN_PRIV_SET_WAPI_KEY          (SIOCIWFIRSTPRIV + 12)
-#define WLAN_PRIV_SET_WAPI_BKID         (SIOCIWFIRSTPRIV + 14)
-#define WLAN_PRIV_GET_WAPI_BKID         (SIOCIWFIRSTPRIV + 15)
-#define WAPI_PSK_AKM_SUITE  0x02721400
-#define WAPI_CERT_AKM_SUITE 0x01721400
-#endif
+/* (SIOCIWFIRSTPRIV + 8)  is currently unused */
+/* (SIOCIWFIRSTPRIV + 16) is currently unused */
+/* (SIOCIWFIRSTPRIV + 10) is currently unused */
+/* (SIOCIWFIRSTPRIV + 12) is currently unused */
+/* (SIOCIWFIRSTPRIV + 14) is currently unused */
+/* (SIOCIWFIRSTPRIV + 15) is currently unused */
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
 /* Private ioctls for setting the measurement configuration */
@@ -339,6 +343,13 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define TX_PER_TRACKING_DEFAULT_RATIO             5
 #define TX_PER_TRACKING_MAX_RATIO                10
 #define TX_PER_TRACKING_DEFAULT_WATERMARK         5
+
+#define HDD_IOCTL_RATELIMIT_INTERVAL 20*HZ
+#define HDD_IOCTL_RATELIMIT_BURST 1
+
+static DEFINE_RATELIMIT_STATE(hdd_ioctl_timeout_rs, \
+        HDD_IOCTL_RATELIMIT_INTERVAL,     \
+        HDD_IOCTL_RATELIMIT_BURST);
 
 /*MCC Configuration parameters */
 enum {
@@ -814,13 +825,22 @@ VOS_STATUS wlan_hdd_get_roam_rssi(hdd_adapter_t *pAdapter, v_S7_t *rssi_value)
    pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
    pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
-   if(eConnectionState_Associated != pHddStaCtx->conn_info.connState)
+   if (eConnectionState_Associated != pHddStaCtx->conn_info.connState)
    {
        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s:Not associated!",__func__);
        /* return a cached value */
        *rssi_value = 0;
        return VOS_STATUS_SUCCESS;
    }
+
+   if (VOS_TRUE == pHddStaCtx->hdd_ReassocScenario)
+   {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                 "%s: Roaming in progress, hence return last cached RSSI", __func__);
+       *rssi_value = pAdapter->rssi;
+       return VOS_STATUS_SUCCESS;
+   }
+
    init_completion(&context.completion);
    context.pAdapter = pAdapter;
    context.magic = RSSI_CONTEXT_MAGIC;
@@ -1606,10 +1626,11 @@ static int iw_set_genie(struct net_device *dev,
         char *extra)
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-    hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
-    u_int8_t *genie = NULL;
-    u_int8_t *base_genie = NULL;
-    v_U16_t remLen;
+   hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
+   u_int8_t *genie = NULL;
+   u_int8_t *base_genie = NULL;
+   v_U16_t remLen;
+   int ret = 0;
 
    ENTER();
 
@@ -1654,13 +1675,20 @@ static int iw_set_genie(struct net_device *dev,
         hddLog(VOS_TRACE_LEVEL_INFO, "%s: IE[0x%X], LEN[%d]\n",
             __func__, elementId, eLen);
 
+        if (remLen < eLen) {
+            hddLog(LOGE, "Remaining len: %u less than ie len: %u",
+                   remLen, eLen);
+            ret = -EINVAL;
+            goto exit;
+        }
+
         switch ( elementId )
          {
             case IE_EID_VENDOR:
                 if ((IE_LEN_SIZE+IE_EID_SIZE+IE_VENDOR_OUI_SIZE) > eLen) /* should have at least OUI */
                 {
-                    kfree(base_genie);
-                    return -EINVAL;
+                    ret = -EINVAL;
+                    goto exit;
                 }
 
                 if (0 == memcmp(&genie[0], "\x00\x50\xf2\x04", 4))
@@ -1674,8 +1702,8 @@ static int iw_set_genie(struct net_device *dev,
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate genIE. "
                                                       "Need bigger buffer space\n");
                        VOS_ASSERT(0);
-                       kfree(base_genie);
-                       return -ENOMEM;
+                       ret = -EINVAL;
+                       goto exit;
                     }
                     // save to Additional IE ; it should be accumulated to handle WPS IE + other IE
                     memcpy( pWextState->genIE.addIEdata + curGenIELen, genie - 2, eLen + 2);
@@ -1684,6 +1712,14 @@ static int iw_set_genie(struct net_device *dev,
                 else if (0 == memcmp(&genie[0], "\x00\x50\xf2", 3))
                 {
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set WPA IE (len %d)",__func__, eLen + 2);
+                    if ((eLen + 2) > (sizeof(pWextState->WPARSNIE)))
+		      {
+			hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate genIE. "
+			       "Need bigger buffer space");
+			ret = -EINVAL;
+			VOS_ASSERT(0);
+			goto exit;
+		      }
                     memset( pWextState->WPARSNIE, 0, MAX_WPA_RSN_IE_LEN );
                     memcpy( pWextState->WPARSNIE, genie - 2, (eLen + 2));
                     pWextState->roamProfile.pWPAReqIE = pWextState->WPARSNIE;
@@ -1700,8 +1736,8 @@ static int iw_set_genie(struct net_device *dev,
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate genIE. "
                                                       "Need bigger buffer space\n");
                        VOS_ASSERT(0);
-                       kfree(base_genie);
-                       return -ENOMEM;
+                       ret = -EINVAL;
+                       goto exit;
                     }
                     // save to Additional IE ; it should be accumulated to handle WPS IE + other IE
                     memcpy( pWextState->genIE.addIEdata + curGenIELen, genie - 2, eLen + 2);
@@ -1710,6 +1746,14 @@ static int iw_set_genie(struct net_device *dev,
               break;
          case DOT11F_EID_RSN:
                 hddLog (LOG1, "%s Set RSN IE (len %d)",__func__, eLen+2);
+                if ((eLen + 2) > (sizeof(pWextState->WPARSNIE)))
+		  {
+                    hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate genIE. "
+			   "Need bigger buffer space");
+                    ret = -EINVAL;
+                    VOS_ASSERT(0);
+                    goto exit;
+		  }
                 memset( pWextState->WPARSNIE, 0, MAX_WPA_RSN_IE_LEN );
                 memcpy( pWextState->WPARSNIE, genie - 2, (eLen + 2));
                 pWextState->roamProfile.pRSNReqIE = pWextState->WPARSNIE;
@@ -1718,15 +1762,19 @@ static int iw_set_genie(struct net_device *dev,
 
          default:
                 hddLog (LOGE, "%s Set UNKNOWN IE %X",__func__, elementId);
-            kfree(base_genie);
-            return 0;
+            goto exit;
     }
-        genie += eLen;
         remLen -= eLen;
+
+        /* Move genie only if next element is present */
+        if (remLen >= 2)
+            genie += eLen;
     }
+
+exit:
     EXIT();
     kfree(base_genie);
-    return 0;
+    return ret;
 }
 
 static int iw_get_genie(struct net_device *dev,
@@ -2518,6 +2566,24 @@ static int iw_get_linkspeed(struct net_device *dev,
    return rc;
 }
 
+/*
+ * Helper function to return correct value for WLAN_GET_LINK_SPEED
+ *
+ */
+static int iw_get_linkspeed_priv(struct net_device *dev,
+                                 struct iw_request_info *info,
+                                 union iwreq_data *wrqu, char *extra)
+{
+   int rc;
+
+   rc = iw_get_linkspeed(dev, info, wrqu, extra);
+
+   if (rc < 0)
+       return rc;
+
+   /* a value is being successfully returned */
+   return 0;
+}
 
 /*
  * Support for the RSSI & RSSI-APPROX private commands
@@ -2619,6 +2685,12 @@ VOS_STATUS  wlan_hdd_enter_bmps(hdd_adapter_t *pAdapter, int mode)
 
    hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "power mode=%d", mode);
    pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   if (pHddCtx->isLogpInProgress) {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "%s:LOGP in Progress. Ignore!!!", __func__);
+      return VOS_STATUS_E_FAILURE;
+   }
+
    init_completion(&context.completion);
 
    context.pAdapter = pAdapter;
@@ -3754,6 +3826,7 @@ static int iw_setint_getnone(struct net_device *dev, struct iw_request_info *inf
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
     hdd_wext_state_t  *pWextState =  WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
+    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     int *value = (int *)extra;
     int sub_cmd = value[0];
     int set_value = value[1];
@@ -3762,14 +3835,14 @@ static int iw_setint_getnone(struct net_device *dev, struct iw_request_info *inf
 #ifdef CONFIG_HAS_EARLYSUSPEND
     v_U8_t nEnableSuspendOld;
 #endif
-    INIT_COMPLETION(pWextState->completion_var);
 
-    if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
+    if (0 != wlan_hdd_validate_context(pHddCtx))
     {
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-                                  "%s:LOGP in Progress. Ignore!!!", __func__);
+        hddLog(VOS_TRACE_LEVEL_ERROR, FL("HDD context is not valid"));
         return -EBUSY;
     }
+
+    INIT_COMPLETION(pWextState->completion_var);
 
     switch(sub_cmd)
     {
@@ -4123,6 +4196,13 @@ static int iw_setchar_getnone(struct net_device *dev, struct iw_request_info *in
     hdd_config_t  *pConfig = pHddCtx->cfg_ini;
 #endif /* WLAN_FEATURE_VOWIFI */
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+		FL("permission check failed"));
+      return -EPERM;
+    }
+
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
@@ -4217,8 +4297,10 @@ static int iw_setnone_getint(struct net_device *dev, struct iw_request_info *inf
 
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
     {
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+        if (__ratelimit(&hdd_ioctl_timeout_rs)) {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
                                   "%s:LOGP in Progress. Ignore!!!", __func__);
+        }
         return -EBUSY;
     }
 
@@ -4313,6 +4395,13 @@ int iw_set_three_ints_getnone(struct net_device *dev, struct iw_request_info *in
     int *value = (int *)extra;
     int sub_cmd = value[0];
     int ret = 0;
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+		FL("permission check failed"));
+      return -EPERM;
+    }
 
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
     {
@@ -4718,18 +4807,19 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
             WLANTL_TLDebugMessage(VOS_TRUE);
             break;
         }
-        case  WE_SET_REASSOC_TRIGGER:
+#ifdef DEBUG_ROAM_DELAY
+        case WE_DUMP_ROAM_TIMER_LOG:
         {
-            hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-            tpAniSirGlobal pMac = WLAN_HDD_GET_HAL_CTX(pAdapter);
-            v_U32_t roamId = 0;
-            tCsrRoamModifyProfileFields modProfileFields;
-            sme_GetModifyProfileFields(pMac, pAdapter->sessionId, &modProfileFields);
-            sme_RoamReassoc(pMac, pAdapter->sessionId, NULL, modProfileFields, &roamId, 1);
-            return 0;
+            vos_dump_roam_time_log_service();
+            break;
         }
-        
 
+        case WE_RESET_ROAM_TIMER_LOG:
+        {
+            vos_reset_roam_timer_log();
+            break;
+        }
+#endif
         default:
         {
             hddLog(LOGE, "%s: unknown ioctl %d", __func__, sub_cmd);
@@ -4789,6 +4879,13 @@ int iw_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info
     int cmd = 0;
     int staId = 0;
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+		FL("permission check failed"));
+      return -EPERM;
+    }
+
     hddLog(LOG1, "%s: Received length %d", __func__, wrqu->data.length);
 
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
@@ -4837,12 +4934,14 @@ int iw_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info
     {
         case WE_LOG_DUMP_CMD:
             {
+                vos_ssr_protect(__func__);
                 hddLog(LOG1, "%s: LOG_DUMP %d arg1 %d arg2 %d arg3 %d arg4 %d",
                         __func__, apps_args[0], apps_args[1], apps_args[2],
                         apps_args[3], apps_args[4]);
 
                 logPrintf(hHal, apps_args[0], apps_args[1], apps_args[2],
                         apps_args[3], apps_args[4]);
+                vos_ssr_unprotect(__func__);
 
             }
             break;
@@ -5160,291 +5259,6 @@ static int iw_get_tspec(struct net_device *dev, struct iw_request_info *info,
    return 0;
 }
 
-
-#ifdef FEATURE_WLAN_WAPI
-static int iw_qcom_set_wapi_mode(struct net_device *dev, struct iw_request_info *info,
-        union iwreq_data *wrqu, char *extra)
-{
-    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-    hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
-    hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-    tCsrRoamProfile *pRoamProfile = &pWextState->roamProfile;
-
-    WAPI_FUNCTION_MODE *pWapiMode = (WAPI_FUNCTION_MODE *)extra;
-
-    hddLog(LOG1, "The function iw_qcom_set_wapi_mode called");
-    hddLog(LOG1, "%s: Received data %s", __func__, extra);
-    hddLog(LOG1, "%s: Received length %d", __func__, wrqu->data.length);
-    hddLog(LOG1, "%s: Input Data (wreq) WAPI Mode:%02d", __func__, pWapiMode->wapiMode);
-
-    if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
-    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-                                  "%s:LOGP in Progress. Ignore!!!", __func__);
-       return -EBUSY;
-    }
-
-    if(WZC_ORIGINAL == pWapiMode->wapiMode) {
-        hddLog(LOG1, "%s: WAPI Mode Set to OFF", __func__);
-         /* Set Encryption mode to defualt , this allows next successfull non-WAPI Association */
-        pRoamProfile->EncryptionType.numEntries = 1;
-        pRoamProfile->EncryptionType.encryptionType[0] = eCSR_ENCRYPT_TYPE_NONE;
-        pRoamProfile->mcEncryptionType.numEntries = 1;
-        pRoamProfile->mcEncryptionType.encryptionType[0] = eCSR_ENCRYPT_TYPE_NONE;
-
-        pRoamProfile->AuthType.numEntries = 1;
-        pHddStaCtx->conn_info.authType = eCSR_AUTH_TYPE_OPEN_SYSTEM;
-        pRoamProfile->AuthType.authType[0] = pHddStaCtx->conn_info.authType;
-    }
-    else if(WAPI_EXTENTION == pWapiMode->wapiMode) {
-        hddLog(LOG1, "%s: WAPI Mode Set to ON", __func__);
-    }
-    else
-         return -EINVAL;
-
-    pAdapter->wapi_info.nWapiMode = pWapiMode->wapiMode;
-
-    return 0;
-}
-
-static int iw_qcom_get_wapi_mode(struct net_device *dev, struct iw_request_info *info,
-        union iwreq_data *wrqu, char *extra)
-{
-    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-    WAPI_FUNCTION_MODE *pWapiMode = (WAPI_FUNCTION_MODE *)(extra);
-
-    if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
-    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-                                  "%s:LOGP in Progress. Ignore!!!", __func__);
-       return -EBUSY;
-    }
-    hddLog(LOG1, "The function iw_qcom_get_wapi_mode called");
-
-    pWapiMode->wapiMode = pAdapter->wapi_info.nWapiMode;
-    hddLog(LOG1, "%s: GET WAPI Mode Value:%02d", __func__, pWapiMode->wapiMode);
-    printk("\nGET WAPI MODE:%d",pWapiMode->wapiMode);
-    return 0;
-}
-
-static int iw_qcom_set_wapi_assoc_info(struct net_device *dev, struct iw_request_info *info,
-        union iwreq_data *wrqu, char *extra)
-{
-    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-//    WAPI_AssocInfo *pWapiAssocInfo = (WAPI_AssocInfo *)(wrqu->data.pointer);
-    WAPI_AssocInfo *pWapiAssocInfo = (WAPI_AssocInfo *)(extra);
-    int i = 0, j = 0;
-    hddLog(LOG1, "The function iw_qcom_set_wapi_assoc_info called");
-    hddLog(LOG1, "%s: Received length %d", __func__, wrqu->data.length);
-    hddLog(LOG1, "%s: Received data %s", __func__, (char*)extra);
-
-    if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
-    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-                                  "%s:LOGP in Progress. Ignore!!!", __func__);
-       return -EBUSY;
-    }
-
-    if (NULL == pWapiAssocInfo)
-    {
-       VOS_TRACE(VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_ERROR,
-             "%s: WDA NULL context", __func__);
-       VOS_ASSERT(0);
-       return VOS_STATUS_E_FAILURE;
-    }
-
-    hddLog(LOG1, "%s: INPUT DATA:\nElement ID:0x%02x Length:0x%02x Version:0x%04x\n",__func__,pWapiAssocInfo->elementID,pWapiAssocInfo->length,pWapiAssocInfo->version);
-    hddLog(LOG1,"%s: akm Suite Cnt:0x%04x",__func__,pWapiAssocInfo->akmSuiteCount);
-    for(i =0 ; i < 16 ; i++)
-        hddLog(LOG1,"akm suite[%02d]:0x%08lx",i,pWapiAssocInfo->akmSuite[i]);
-
-    hddLog(LOG1,"%s: Unicast Suite Cnt:0x%04x",__func__,pWapiAssocInfo->unicastSuiteCount);
-    for(i =0 ; i < 16 ; i++)
-        hddLog(LOG1, "Unicast suite[%02d]:0x%08lx",i,pWapiAssocInfo->unicastSuite[i]);
-
-    hddLog(LOG1,"%s: Multicast suite:0x%08lx Wapi capa:0x%04x",__func__,pWapiAssocInfo->multicastSuite,pWapiAssocInfo->wapiCability);
-    hddLog(LOG1, "%s: BKID Cnt:0x%04x\n",__func__,pWapiAssocInfo->bkidCount);
-    for(i = 0 ; i < 16 ; i++) {
-        hddLog(LOG1, "BKID List[%02d].bkid:0x",i);
-        for(j = 0 ; j < 16 ; j++)
-            hddLog(LOG1,"%02x",pWapiAssocInfo->bkidList[i].bkid[j]);
-    }
-
-    /* We are not using the entire IE as provided by the supplicant.
-     * This is being calculated by SME. This is the same as in the
-     * case of WPA. Only the auth mode information needs to be
-     * extracted here*/
-    if ( pWapiAssocInfo->akmSuite[0] == WAPI_PSK_AKM_SUITE ) {
-       hddLog(LOG1, "%s: WAPI AUTH MODE SET TO PSK",__func__);
-       pAdapter->wapi_info.wapiAuthMode = WAPI_AUTH_MODE_PSK;
-    }
-
-    if ( pWapiAssocInfo->akmSuite[0] == WAPI_CERT_AKM_SUITE) {
-       hddLog(LOG1, "%s: WAPI AUTH MODE SET TO CERTIFICATE",__func__);
-       pAdapter->wapi_info.wapiAuthMode = WAPI_AUTH_MODE_CERT;
-    }
-    return 0;
-}
-
-static int iw_qcom_set_wapi_key(struct net_device *dev, struct iw_request_info *info,
-        union iwreq_data *wrqu, char *extra)
-{
-    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-    hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-    eHalStatus       halStatus   = eHAL_STATUS_SUCCESS;
-    tANI_U32         roamId      = 0xFF;
-    tANI_U8         *pKeyPtr     = NULL;
-    v_BOOL_t         isConnected = TRUE;
-    tCsrRoamSetKey   setKey;
-    int i = 0;
-    WLAN_WAPI_KEY *pWapiKey = (WLAN_WAPI_KEY *)(extra);
-
-    if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
-    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-                                  "%s:LOGP in Progress. Ignore!!!", __func__);
-       return -EBUSY;
-    }
-
-    hddLog(LOG1, "The function iw_qcom_set_wapi_key called ");
-    hddLog(LOG1, "%s: Received length %d", __func__, wrqu->data.length);
-    hddLog(LOG1, "%s: Received data %s", __func__, (char*)extra);
-
-    hddLog(LOG1,":%s: INPUT DATA:\nKey Type:0x%02x Key Direction:0x%02x KEY ID:0x%02x\n", __func__, pWapiKey->keyType, pWapiKey->keyDirection, pWapiKey->keyId);
-    hddLog(LOG1,"Add Index:0x");
-    for(i =0 ; i < 12 ; i++)
-        hddLog(LOG1,"%02x",pWapiKey->addrIndex[i]);
-
-    hddLog(LOG1,"\n%s: WAPI ENCRYPTION KEY LENGTH:0x%04x", __func__,pWapiKey->wpiekLen);
-    hddLog(LOG1, "WAPI ENCRYPTION KEY:0x");
-    for(i =0 ; i < 16 ; i++)
-        hddLog(LOG1,"%02x",pWapiKey->wpiek[i]);
-
-    hddLog(LOG1,"\n%s: WAPI INTEGRITY CHECK KEY LENGTH:0x%04x", __func__,pWapiKey->wpickLen);
-    hddLog(LOG1,"WAPI INTEGRITY CHECK KEY:0x");
-    for(i =0 ; i < 16 ; i++)
-        hddLog(LOG1,"%02x",pWapiKey->wpick[i]);
-
-    hddLog(LOG1,"\nWAPI PN NUMBER:0x");
-    for(i = 0 ; i < 16 ; i++)
-        hddLog(LOG1,"%02x",pWapiKey->pn[i]);
-
-    // Clear the setkey memory
-    vos_mem_zero(&setKey,sizeof(tCsrRoamSetKey));
-    // Store Key ID
-    setKey.keyId = (unsigned char)( pWapiKey->keyId );
-    // SET WAPI Encryption
-    setKey.encType  = eCSR_ENCRYPT_TYPE_WPI;
-    // Key Directionn both TX and RX
-    setKey.keyDirection = eSIR_TX_RX; // Do WE NEED to update this based on Key Type as GRP/UNICAST??
-    // the PAE role
-    setKey.paeRole = 0 ;
-
-    switch ( pWapiKey->keyType )
-    {
-        case PAIRWISE_KEY:
-        {
-            isConnected = hdd_connIsConnected(pHddStaCtx);
-            vos_mem_copy(setKey.peerMac,&pHddStaCtx->conn_info.bssId,WNI_CFG_BSSID_LEN);
-            break;
-        }
-        case GROUP_KEY:
-        {
-            vos_set_macaddr_broadcast( (v_MACADDR_t *)setKey.peerMac );
-            break;
-        }
-        default:
-        {
-            //Any other option is invalid.
-            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                       "[%4d] %s() failed to Set Key. Invalid key type %d", __LINE__,__func__ , -1 );
-
-            hddLog(LOGE," %s: Error WAPI Key Add Type",__func__);
-            halStatus = !eHAL_STATUS_SUCCESS; // NEED TO UPDATE THIS WITH CORRECT VALUE
-            break; // NEED RETURN FROM HERE ????
-        }
-    }
-
-    // Concatenating the Encryption Key (EK) and the MIC key (CK): EK followed by CK
-    setKey.keyLength = (v_U16_t)((pWapiKey->wpiekLen)+(pWapiKey->wpickLen));
-    pKeyPtr = setKey.Key;
-    memcpy( pKeyPtr, pWapiKey->wpiek, pWapiKey->wpiekLen );
-    pKeyPtr += pWapiKey->wpiekLen;
-    memcpy( pKeyPtr, pWapiKey->wpick, pWapiKey->wpickLen );
-
-    // Set the new key with SME.
-    pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_SETTING_KEY;
-
-    if ( isConnected ) {
-        halStatus = sme_RoamSetKey( WLAN_HDD_GET_HAL_CTX(pAdapter), pAdapter->sessionId, &setKey, &roamId );
-        if ( halStatus != eHAL_STATUS_SUCCESS )
-        {
-            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                       "[%4d] sme_RoamSetKey returned ERROR status= %d", __LINE__, halStatus );
-
-            pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
-        }
-    }
-#if 0 /// NEED TO CHECK ON THIS
-    else
-    {
-        // Store the keys in the adapter to be moved to the profile & passed to
-        // SME in the ConnectRequest if we are not yet in connected state.
-         memcpy( &pAdapter->setKey[ setKey.keyId ], &setKey, sizeof( setKey ) );
-         pAdapter->fKeySet[ setKey.keyId ] = TRUE;
-
-         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_MED,
-                    "  Saving key [idx= %d] to apply when moving to connected state ",
-                    setKey.keyId );
-
-    }
-#endif
-    return halStatus;
-}
-
-static int iw_qcom_set_wapi_bkid(struct net_device *dev, struct iw_request_info *info,
-        union iwreq_data *wrqu, char *extra)
-{
-    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-#ifdef WLAN_DEBUG
-    int i = 0;
-    WLAN_BKID_LIST  *pBkid       = ( WLAN_BKID_LIST *) extra;
-#endif
-
-    hddLog(LOG1, "The function iw_qcom_set_wapi_bkid called");
-    hddLog(LOG1, "%s: Received length %d", __func__, wrqu->data.length);
-    hddLog(LOG1, "%s: Received data %s", __func__, (char*)extra);
-
-    hddLog(LOG1,"%s: INPUT DATA:\n BKID Length:0x%08lx\n", __func__,pBkid->length);
-    hddLog(LOG1,"%s: BKID Cnt:0x%04lx",pBkid->BKIDCount);
-
-    hddLog(LOG1,"BKID KEY LIST[0]:0x");
-
-    if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
-    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-                                  "%s:LOGP in Progress. Ignore!!!", __func__);
-       return -EBUSY;
-    }
-
-#ifdef WLAN_DEBUG
-    for(i =0 ; i < 16 ; i++)
-        hddLog(LOG1,"%02x",pBkid->BKID[0].bkid[i]);
-#endif
-
-    return 0;
-}
-
-static int iw_qcom_get_wapi_bkid(struct net_device *dev, struct iw_request_info *info,
-        union iwreq_data *wrqu, char *extra)
-{
-    /* Yet to implement this function, 19th April 2010 */
-    hddLog(LOG1, "The function iw_qcom_get_wapi_bkid called ");
-
-    return 0;
-}
-#endif /* FEATURE_WLAN_WAPI */
-
 #ifdef WLAN_FEATURE_VOWIFI_11R
 //
 //
@@ -5614,6 +5428,13 @@ static int iw_clear_dynamic_mcbc_filter(struct net_device *dev,
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     tpSirWlanSetRxpFilters wlanRxpFilterParam;
     hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "%s: ", __func__);
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+		FL("permission check failed"));
+      return -EPERM;
+    }
 
     //Reset the filter to INI value as we have to clear the dynamic filter
     pHddCtx->configuredMcastBcastFilter = pHddCtx->cfg_ini->mcastBcastFilterSetting;
@@ -6168,6 +5989,13 @@ static int iw_set_packet_filter_params(struct net_device *dev, struct iw_request
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "mem_alloc_copy_from_user_helper fail");
         return -ENOMEM;
+    }
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+		FL("permission check failed"));
+      return -EPERM;
     }
 
     ret = wlan_hdd_set_filter(WLAN_HDD_GET_CTX(pAdapter), pRequest, pAdapter->sessionId);
@@ -6814,7 +6642,8 @@ int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr)
                         * then change the band*/
 
              hddLog(VOS_TRACE_LEVEL_INFO,
-                     "%s STA connected in band %u, Changing band to %u, Issuing Disconnect",
+                     "%s STA connected in band %u, Changing band to %u, Issuing Disconnect."
+                     " Set HDD connState to eConnectionState_NotConnected",
                         __func__, csrGetCurrentBand(hHal), band);
 
              pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
@@ -6855,6 +6684,13 @@ static int iw_set_band_config(struct net_device *dev,
     tANI_U8 *ptr = NULL;
     int ret = 0;
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+		FL("permission check failed"));
+      return -EPERM;
+    }
+
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s: ", __func__);
 
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
@@ -6890,8 +6726,17 @@ static int iw_set_power_params_priv(struct net_device *dev,
 {
   int ret;
   char *ptr;
+
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                 "Set power params Private");
+
+  if (!capable(CAP_NET_ADMIN))
+  {
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+	      FL("permission check failed"));
+    return -EPERM;
+  }
+
   /* ODD number is used for set, copy data using copy_from_user */
   ptr = mem_alloc_copy_from_user_helper(wrqu->data.pointer,
                                           wrqu->data.length);
@@ -7129,14 +6974,6 @@ static const iw_handler we_private[] = {
    [WLAN_PRIV_GET_OEM_DATA_RSP - SIOCIWFIRSTPRIV] = iw_get_oem_data_rsp, //oem data req Specifc
 #endif
 
-#ifdef FEATURE_WLAN_WAPI
-   [WLAN_PRIV_SET_WAPI_MODE             - SIOCIWFIRSTPRIV]  = iw_qcom_set_wapi_mode,
-   [WLAN_PRIV_GET_WAPI_MODE             - SIOCIWFIRSTPRIV]  = iw_qcom_get_wapi_mode,
-   [WLAN_PRIV_SET_WAPI_ASSOC_INFO       - SIOCIWFIRSTPRIV]  = iw_qcom_set_wapi_assoc_info,
-   [WLAN_PRIV_SET_WAPI_KEY              - SIOCIWFIRSTPRIV]  = iw_qcom_set_wapi_key,
-   [WLAN_PRIV_SET_WAPI_BKID             - SIOCIWFIRSTPRIV]  = iw_qcom_set_wapi_bkid,
-   [WLAN_PRIV_GET_WAPI_BKID             - SIOCIWFIRSTPRIV]  = iw_qcom_get_wapi_bkid,
-#endif /* FEATURE_WLAN_WAPI */
 #ifdef WLAN_FEATURE_VOWIFI_11R
    [WLAN_PRIV_SET_FTIES                 - SIOCIWFIRSTPRIV]   = iw_set_fties,
 #endif
@@ -7156,7 +6993,7 @@ static const iw_handler we_private[] = {
    [WLAN_PRIV_SET_MCBC_FILTER           - SIOCIWFIRSTPRIV]   = iw_set_dynamic_mcbc_filter,
    [WLAN_PRIV_CLEAR_MCBC_FILTER         - SIOCIWFIRSTPRIV]   = iw_clear_dynamic_mcbc_filter,
    [WLAN_SET_POWER_PARAMS               - SIOCIWFIRSTPRIV]   = iw_set_power_params_priv,
-   [WLAN_GET_LINK_SPEED                 - SIOCIWFIRSTPRIV]   = iw_get_linkspeed,
+   [WLAN_GET_LINK_SPEED                 - SIOCIWFIRSTPRIV]   = iw_get_linkspeed_priv,
 };
 
 /*Maximum command length can be only 15 */
@@ -7415,12 +7252,18 @@ static const struct iw_priv_args we_private_args[] = {
         0,
         0,
         "dataSnapshot"},
+#ifdef DEBUG_ROAM_DELAY
     {
-        WE_SET_REASSOC_TRIGGER,
+        WE_DUMP_ROAM_TIMER_LOG,
         0,
         0,
-        "reassoc" },
-
+        "dumpRoamDelay" },
+    {
+        WE_RESET_ROAM_TIMER_LOG,
+        0,
+        0,
+        "resetRoamDelay" },
+#endif
     /* handlers for main ioctl */
     {   WLAN_PRIV_SET_VAR_INT_GET_NONE,
         IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
@@ -7500,44 +7343,6 @@ static const struct iw_priv_args we_private_args[] = {
         IW_PRIV_TYPE_BYTE | MAX_OEM_DATA_RSP_LEN,
         "get_oem_data_rsp" },
 #endif
-
-#ifdef FEATURE_WLAN_WAPI
-   /* handlers for main ioctl SET_WAPI_MODE */
-    {   WLAN_PRIV_SET_WAPI_MODE,
-        IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-        0,
-        "SET_WAPI_MODE" },
-
-   /* handlers for main ioctl GET_WAPI_MODE */
-    {   WLAN_PRIV_GET_WAPI_MODE,
-        0,
-        IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-        "GET_WAPI_MODE" },
-
-   /* handlers for main ioctl SET_ASSOC_INFO */
-    {   WLAN_PRIV_SET_WAPI_ASSOC_INFO,
-        IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 400,
-        0,
-        "SET_WAPI_ASSOC" },
-
-   /* handlers for main ioctl SET_WAPI_KEY */
-    {   WLAN_PRIV_SET_WAPI_KEY,
-        IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 71,
-        0,
-        "SET_WAPI_KEY" },
-
-   /* handlers for main ioctl SET_WAPI_BKID */
-    {   WLAN_PRIV_SET_WAPI_BKID,
-        IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 24,
-        0,
-        "SET_WAPI_BKID" },
-
-   /* handlers for main ioctl GET_WAPI_BKID */
-    {   WLAN_PRIV_GET_WAPI_BKID,
-        0,
-        IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 24,
-        "GET_WAPI_BKID" },
-#endif /* FEATURE_WLAN_WAPI */
 
     /* handlers for main ioctl - host offload */
     {
@@ -7890,7 +7695,12 @@ int hdd_UnregisterWext(struct net_device *dev)
 
    EXIT();
 #endif
+
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"In %s", __func__);
+   rtnl_lock();
    dev->wireless_handlers = NULL;
+   rtnl_unlock();
+
    return 0;
 }
 

@@ -462,6 +462,10 @@ static int snd_compr_allocate_buffer(struct snd_compr_stream *stream,
 	unsigned int buffer_size;
 	void *buffer;
 
+	if (params->buffer.fragment_size == 0 ||
+	    params->buffer.fragments > SIZE_MAX / params->buffer.fragment_size)
+		return -EINVAL;
+
 	buffer_size = params->buffer.fragment_size * params->buffer.fragments;
 	if (stream->ops->copy) {
 		buffer = NULL;
@@ -823,6 +827,10 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		retval = snd_compr_get_metadata(stream, arg);
 		break;
 
+	case _IOC_NR(SNDRV_COMPRESS_TSTAMP):
+		retval = snd_compr_tstamp(stream, arg);
+		break;
+
 	case _IOC_NR(SNDRV_COMPRESS_PAUSE):
 		retval = snd_compr_pause(stream);
 		break;
@@ -837,6 +845,10 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 
 	case _IOC_NR(SNDRV_COMPRESS_STOP):
 		retval = snd_compr_stop(stream);
+		break;
+
+	case _IOC_NR(SNDRV_COMPRESS_PARTIAL_DRAIN):
+		retval = snd_compr_partial_drain(stream);
 		break;
 
 	case _IOC_NR(SNDRV_COMPRESS_NEXT_TRACK):

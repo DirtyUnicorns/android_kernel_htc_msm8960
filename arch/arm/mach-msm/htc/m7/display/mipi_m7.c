@@ -934,6 +934,11 @@ static int m7_display_on(struct platform_device *pdev)
 	struct msm_fb_data_type *mfd;
 	bool clk_ctrl = false;
 
+	if (panel_type == PANEL_ID_DLXJ_SHARP_RENESAS ||
+			panel_type == PANEL_ID_DLXJ_SONY_RENESAS ||
+			panel_type == PANEL_ID_M7_SHARP_RENESAS)
+		hr_msleep(120);
+
 	mfd = platform_get_drvdata(pdev);
 	if (!mfd)
 		return -ENODEV;
@@ -1121,10 +1126,10 @@ static void m7_set_backlight(struct msm_fb_data_type *mfd)
 
 static void sharp_renesas_panel_init(void)
 {
-	if (PANEL_ID_DLXJ_SHARP_RENESAS) {
+	if (panel_type == PANEL_ID_DLXJ_SHARP_RENESAS) {
 		panel_on_cmds = sharp_panel_on_cmds;
 		panel_on_cmds_count = ARRAY_SIZE(sharp_panel_on_cmds);
-	} else if (PANEL_ID_M7_SHARP_RENESAS) {
+	} else if (panel_type == PANEL_ID_M7_SHARP_RENESAS) {
 		panel_on_cmds = m7_sharp_panel_on_cmds;
 		panel_on_cmds_count = ARRAY_SIZE(m7_sharp_panel_on_cmds);
 	}

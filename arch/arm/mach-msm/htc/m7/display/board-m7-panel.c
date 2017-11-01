@@ -99,7 +99,7 @@ void __init m7_allocate_fb_region(void)
 	addr = alloc_bootmem_align(size, 0x1000);
 	msm_fb_resources[0].start = __pa(addr);
 	msm_fb_resources[0].end = msm_fb_resources[0].start + size - 1;
-	pr_info("allocating %lu bytes at %p (%lx physical) for fb\n",
+	pr_info("allocating %lu bytes at %pK (%lx physical) for fb\n",
 			size, addr, __pa(addr));
 }
 
@@ -600,9 +600,6 @@ static void __init m7_set_display_params(char *prim_panel, char *ext_panel)
 void __init m7_init_fb(void)
 {
 	wa_xo = msm_xo_get(MSM_XO_TCXO_D0, "mipi");
-
-	if (panel_type == PANEL_ID_M7_SHARP_RENESAS)
-		mdp_pdata.cont_splash_enabled = 0x1;
 
 	m7_set_display_params("mipi_m7", "hdmi_msm");
 	platform_device_register(&msm_fb_device);
