@@ -500,6 +500,23 @@ static ssize_t store_##file_name					\
 store_one(scaling_min_freq, min);
 store_one(scaling_max_freq, max);
 
+extern ssize_t get_gpu_vdd_levels_str(char *buf);
+extern void set_gpu_vdd_levels(int uv_tbl[]);
+
+static ssize_t show_gpu_vdd_levels(struct kobject *a, struct attribute *b, char *buf)
+{
+	return get_gpu_vdd_levels_str(buf);
+}
+
+static ssize_t store_gpu_vdd_levels(struct kobject *a, struct attribute *b, const char *buf, size_t count)
+{
+	unsigned int ret = -EINVAL;
+	unsigned int u[3];
+	ret = sscanf(buf, "%d %d %d", &u[0], &u[1], &u[2]);
+	set_gpu_vdd_levels(u);
+	return count;
+}
+
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
  */
@@ -750,7 +767,8 @@ cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
 define_one_global_rw(vdd_levels);
-
+define_one_global_rw(gpu_vdd_levels);
+ 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
 	&cpuinfo_max_freq.attr,
@@ -764,11 +782,13 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+	&gpu_vdd_levels.attr,
 	NULL
 };
 
 static struct attribute *vddtbl_attrs[] = {
 	&vdd_levels.attr,
+	&gpu_vdd_levels.attr,
 	NULL
 };
 
