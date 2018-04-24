@@ -2666,9 +2666,12 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 	if (sinfo->filled & STATION_INFO_RX_PACKETS)
 		NLA_PUT_U32(msg, NL80211_STA_INFO_RX_PACKETS,
 			    sinfo->rx_packets);
-	if (sinfo->filled & STATION_INFO_TX_PACKETS)
+	if (sinfo->filled & STATION_INFO_TX_PACKETS){
 		NLA_PUT_U32(msg, NL80211_STA_INFO_TX_PACKETS,
 			    sinfo->tx_packets);
+		NLA_PUT_U32(msg, NL80211_STA_INFO_TX_FAILED,
+				sinfo->tx_failed);
+	}
 	if (sinfo->filled & STATION_INFO_TX_RETRIES)
 		NLA_PUT_U32(msg, NL80211_STA_INFO_TX_RETRIES,
 			    sinfo->tx_retries);
