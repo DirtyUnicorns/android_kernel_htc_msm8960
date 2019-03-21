@@ -448,8 +448,9 @@ static inline int get_mode(struct vfsmount *mnt,
 {
 	int owner_mode;
 	int filtered_mode;
-	struct sdcardfs_sb_info *sb_info = SDCARDFS_SB(info->vfs_inode.i_sb);
-	int visible_mode = 0775 & ~sb_info->options.mask;
+	struct sdcardfs_vfsmount_options *opts = mnt->data;
+	int visible_mode = 0775 & ~opts->mask;
+
 
 	if (data->perm == PERM_PRE_ROOT) {
 		/* Top of multi-user view should always be visible to ensure

@@ -25,7 +25,6 @@
 #include <linux/radix-tree.h>
 #include <linux/dcache.h>
 
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -33,14 +32,10 @@
 #include <linux/configfs.h>
 
 struct hashtable_entry {
-		struct hlist_node dlist; /* for deletion cleanup */
-		struct qstr  key;
-	unsigned int value;
-};
-
-struct sb_list {
-	struct super_block *sb;
-	struct list_head list;
+	struct hlist_node hlist;
+	struct hlist_node dlist; /* for deletion cleanup */
+	struct qstr key;
+	atomic_t value;
 };
 
 static DEFINE_HASHTABLE(package_to_appid, 8);
@@ -115,7 +110,7 @@ static appid_t __get_ext_gid(const struct qstr *key)
 			return ret_id;
 		}
 	}
-		rcu_read_unlock();
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -451,6 +446,7 @@ static void packagelist_destroy(void)
 	struct hlist_node *h_t;
 	HLIST_HEAD(free_list);
 	int i;
+
 	mutex_lock(&sdcardfs_super_list_lock);
 	hash_for_each_rcu_new(package_to_appid, i, hash_cur, hlist) {
 		hash_del_rcu(&hash_cur->hlist);
@@ -758,7 +754,6 @@ static ssize_t packages_list_show(struct packages *packages,
 {
 	struct hashtable_entry *hash_cur_app;
 	struct hashtable_entry *hash_cur_user;
-	struct hlist_node *h_t;
 	int i;
 	int count = 0, written = 0;
 	const char errormsg[] = "<truncated>\n";
@@ -783,7 +778,6 @@ static ssize_t packages_list_show(struct packages *packages,
 		count += written;
 	}
 	rcu_read_unlock();
-
 
 	return count;
 }

@@ -95,6 +95,10 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 	/* temporarily change umask for lower fs write */
 	saved_fs = current->fs;
 	copied_fs = copy_fs_struct(current->fs);
+	if (!copied_fs) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
 	current->fs = copied_fs;
 	current->fs->umask = 0;
 	err = vfs_create2(lower_dentry_mnt, lower_parent_dentry->d_inode, lower_dentry, mode, nd);
@@ -475,7 +479,7 @@ static int sdcardfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	if (err)
 		goto out;
 
-	err = sdcardfs_interpose(dentry, dir->i_sb, &lower_path, SDCARDFS_I(dir)->userid);
+	err = sdcardfs_interpose(dentry, dir->i_sb, &lower_path);
 	if (err)
 		goto out;
 	fsstack_copy_attr_times(dir, sdcardfs_lower_inode(dir));
@@ -732,40 +736,6 @@ static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int ma
 #endif
 	return err;
 
-}
-
-static int sdcardfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		 struct kstat *stat)
-{
-	struct dentry *lower_dentry;
-	struct inode *inode;
-	struct inode *lower_inode;
-	struct path lower_path;
-	struct dentry *parent;
-
-	parent = dget_parent(dentry);
-	if(!check_caller_access_to_name(parent->d_inode, dentry->d_name.name)) {
-		printk(KERN_INFO "%s: need to check the caller's gid in packages.list\n"
-						 "  dentry: %s, task:%s\n",
-						 __func__, dentry->d_name.name, current->comm);
-		dput(parent);
-		return -EACCES;
-	}
-	dput(parent);
-
-	inode = dentry->d_inode;
-
-	sdcardfs_get_lower_path(dentry, &lower_path);
-	lower_dentry = lower_path.dentry;
-	lower_inode = sdcardfs_lower_inode(inode);
-
-	sdcardfs_copy_and_fix_attrs(inode, lower_inode);
-	fsstack_copy_inode_size(inode, lower_inode);
-
-
-	generic_fillattr(inode, stat);
-	sdcardfs_put_lower_path(dentry, &lower_path);
-	return 0;
 }
 
 static int sdcardfs_setattr_wrn(struct dentry *dentry, struct iattr *ia)
